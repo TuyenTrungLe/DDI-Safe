@@ -154,15 +154,15 @@ def main():
     load_dotenv()
 
     # Check for API key
-    if not os.getenv("OPENAI_API_KEY"):
+    if not os.getenv("GEMINI_API_KEY"):
         console = Console()
         console.print(
-            "[red]❌ Error: OPENAI_API_KEY not found in environment variables[/red]"
+            "[red]❌ Error: GEMINI_API_KEY not found in environment variables[/red]"
         )
         console.print(
-            "[yellow]Please create a .env file with your OpenAI API key:[/yellow]"
+            "[yellow]Please create a .env file with your Gemini API key:[/yellow]"
         )
-        console.print("[dim]OPENAI_API_KEY=your_api_key_here[/dim]\n")
+        console.print("[dim]GEMINI_API_KEY=your_api_key_here[/dim]\n")
         sys.exit(1)
 
     # Get data file path
@@ -183,7 +183,8 @@ def main():
         with console.status("[cyan]Loading drug interaction agent...", spinner="dots"):
             agent = create_agent(
                 data_filepath=data_file,
-                model_name=os.getenv("OPENAI_MODEL", "gpt-5-mini-2025-08-07"),
+                gemini_api_key=os.getenv("GEMINI_API_KEY"),
+                model_name=os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite"),
                 verbose=False,
             )
 

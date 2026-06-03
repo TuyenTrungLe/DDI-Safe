@@ -158,7 +158,7 @@ export function ImageUpload({
             >
               <img
                 src={previews[image.name]}
-                alt={`Nhãn thuốc đã tải lên ${index + 1}`}
+                alt={`Uploaded drug label ${index + 1}`}
                 className="w-full h-auto max-h-64 object-contain transition-transform duration-200 group-hover:scale-105"
               />
               {!isProcessing && (
@@ -196,16 +196,16 @@ export function ImageUpload({
               <div className="rounded-full bg-gradient-to-br from-primary/20 to-primary/10 p-5 shadow-md">
                 <Plus className="h-7 w-7 text-primary" />
               </div>
-              <p className="text-sm font-semibold">{isDragActive ? "Thả thêm hình ảnh vào đây" : "Tải lên từ tệp"}</p>
+              <p className="text-sm font-semibold">{isDragActive ? "Drop more images here" : "Upload from file"}</p>
             </div>
           </div>
         )}
 
         <div className="flex justify-between items-center">
-          <span className="text-sm text-muted-foreground">Đã chọn {selectedImages.length} hình ảnh</span>
+          <span className="text-sm text-muted-foreground">{selectedImages.length} images selected</span>
           {selectedImages.length > 0 && (
             <Button variant="outline" size="sm" onClick={handleClear} disabled={isProcessing}>
-              Xóa Tất Cả
+              Clear All
             </Button>
           )}
         </div>
@@ -219,7 +219,7 @@ export function ImageUpload({
       <div className="space-y-4 mt-4">
         {/* Uploaded Images */}
         <div>
-          <p className="text-sm font-medium mb-2 text-muted-foreground">Nhãn thuốc đã tải lên:</p>
+          <p className="text-sm font-medium mb-2 text-muted-foreground">Uploaded drug labels:</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {selectedImages.map((image, index) => (
               <div
@@ -228,7 +228,7 @@ export function ImageUpload({
               >
                 <img
                   src={previews[image.name]}
-                  alt={`Nhãn thuốc đã tải lên ${index + 1}`}
+                  alt={`Uploaded drug label ${index + 1}`}
                   className="w-full h-auto max-h-64 object-contain transition-transform duration-200 group-hover:scale-105"
                 />
                 {!isProcessing && (
@@ -268,16 +268,16 @@ export function ImageUpload({
               <div className="rounded-full bg-gradient-to-br from-primary/20 to-primary/10 p-5 shadow-md">
                 <Plus className="h-7 w-7 text-primary" />
               </div>
-              <p className="text-sm font-semibold">{isDragActive ? "Thả thêm hình ảnh vào đây" : "Tải lên từ tệp"}</p>
+              <p className="text-sm font-semibold">{isDragActive ? "Drop more images here" : "Upload from file"}</p>
             </div>
           </div>
         )}
 
         <div className="flex justify-between items-center">
-          <span className="text-sm text-muted-foreground">Đã chọn {selectedImages.length} hình ảnh</span>
+          <span className="text-sm text-muted-foreground">{selectedImages.length} images selected</span>
           {selectedImages.length > 0 && (
             <Button variant="outline" size="sm" onClick={handleClear} disabled={isProcessing}>
-              Xóa Tất Cả
+              Clear All
             </Button>
           )}
         </div>
@@ -301,9 +301,9 @@ export function ImageUpload({
             <Upload className="h-8 w-8 text-primary" />
           </div>
           <div className="space-y-2">
-            <p className="text-lg font-medium">{isDragActive ? "Thả hình ảnh vào đây" : "Tải lên hình ảnh nhãn thuốc"}</p>
-            <p className="text-sm text-muted-foreground">Kéo thả hình ảnh hoặc nhấp để chọn</p>
-            <p className="text-xs text-muted-foreground">Hỗ trợ: PNG, JPG, JPEG, GIF, BMP (tối đa {maxFiles} hình ảnh)</p>
+            <p className="text-lg font-medium">{isDragActive ? "Drop images here" : "Upload drug label images"}</p>
+            <p className="text-sm text-muted-foreground">Drag and drop images or click to choose</p>
+            <p className="text-xs text-muted-foreground">Supported: PNG, JPG, JPEG, GIF, BMP (up to {maxFiles} images)</p>
           </div>
         </div>
       </div>

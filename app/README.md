@@ -63,16 +63,16 @@ Configuration is managed through environment variables and the `.env` file. All 
 | `API_HOST` | `0.0.0.0` | API host address |
 | `API_PORT` | `8000` | API port |
 | `API_RELOAD` | `true` | Enable auto-reload in development |
-| `OPENAI_API_KEY` | - | OpenAI API key (required) |
-| `OPENAI_MODEL` | `gpt-5-mini-2025-08-07` | OpenAI model name |
+| `GEMINI_API_KEY` | - | Gemini API key (required) |
+| `GEMINI_MODEL` | `gemini-3.1-flash-lite` | Gemini model name |
 | `DATA_FILE` | `TWOSIDES_preprocessed.csv` | Path to drug interaction data |
 | `AGENT_VERBOSE` | `false` | Enable verbose agent logging |
 
 ### Example .env file
 
 ```bash
-OPENAI_API_KEY=your-api-key-here
-OPENAI_MODEL=gpt-5-mini-2025-08-07
+GEMINI_API_KEY=your-api-key-here
+GEMINI_MODEL=gemini-3.1-flash-lite
 DATA_FILE=TWOSIDES_preprocessed.csv
 API_HOST=0.0.0.0
 API_PORT=8000

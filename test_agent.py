@@ -17,15 +17,15 @@ def test_environment():
 
     load_dotenv()
 
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("❌ OPENAI_API_KEY not found!")
-        print("Please set your OpenAI API key in .env file or environment variables.")
+        print("❌ GEMINI_API_KEY not found!")
+        print("Please set your Gemini API key in .env file or environment variables.")
         print("See ENV_SETUP.md for instructions.")
         return False
 
-    print(f"✓ OPENAI_API_KEY is set")
-    print(f"✓ Model: {os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')}")
+    print(f"✓ GEMINI_API_KEY is set")
+    print(f"✓ Model: {os.getenv('GEMINI_MODEL', 'gemini-3.1-flash-lite')}")
     print(f"✓ Data file: {os.getenv('DATA_FILE', 'TWOSIDES_preprocessed.csv')}")
     return True
 
@@ -57,8 +57,8 @@ def test_imports():
     packages = [
         ("python-igraph", "igraph"),
         ("langchain", "langchain"),
-        ("langchain-openai", "langchain_openai"),
-        ("openai", "openai"),
+        ("langchain-google-genai", "langchain_google_genai"),
+        ("google-genai", "google.genai"),
         ("fastapi", "fastapi"),
         ("rich", "rich"),
         ("networkx", "networkx"),

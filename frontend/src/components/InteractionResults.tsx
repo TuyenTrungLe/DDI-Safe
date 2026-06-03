@@ -1,12 +1,9 @@
-import { AlertTriangle, CheckCircle, Info, ExternalLink } from "lucide-react";
+﻿import { AlertTriangle, CheckCircle, Info, ExternalLink } from "lucide-react";
 import { Alert, AlertTitle } from "./ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import ChatbotInline from "./chatbot-inline";
-import { useEffect } from "react";
-import useGlobalStore from "@/stores/use-global-store";
 
 interface DrugReference {
   name: string;
@@ -59,15 +56,15 @@ interface InteractionResultsProps {
 // Parse drug name conversions from markdown
 function parseDrugConversions(text: string): DrugConversion[] {
   const conversions: DrugConversion[] = [];
-  const conversionSection = text.match(/### Chuyển Đổi Tên Thuốc\n([\s\S]*?)(?=\n###|$)/);
+  const conversionSection = text.match(/### (?:Drug Name Conversions|ChuyÃ¡Â»Æ’n Ã„ÂÃ¡Â»â€¢i TÃƒÂªn ThuÃ¡Â»â€˜c)\n([\s\S]*?)(?=\n###|$)/);
 
   if (conversionSection) {
     const lines = conversionSection[1].split("\n").filter((line) => line.trim().startsWith("-"));
     lines.forEach((line) => {
-      // Match pattern: - Original → Converted1 → Converted2 (etc)
-      const match = line.match(/- (.+?)( → .+)+$/);
+      // Match pattern: - Original Ã¢â€ â€™ Converted1 Ã¢â€ â€™ Converted2 (etc)
+      const match = line.match(/- (.+?)( Ã¢â€ â€™ .+)+$/);
       if (match) {
-        const parts = line.replace(/^-\s*/, "").split(" → ");
+        const parts = line.replace(/^-\s*/, "").split(" Ã¢â€ â€™ ");
         if (parts.length >= 2) {
           conversions.push({
             original: parts[0].trim(),
@@ -84,7 +81,7 @@ function parseDrugConversions(text: string): DrugConversion[] {
 // Parse drug interactions from markdown
 function parseDrugInteractions(text: string): DrugInteraction[] {
   const interactions: DrugInteraction[] = [];
-  const interactionSection = text.match(/### Tương Tác Giữa Các Cặp Thuốc\n([\s\S]*?)(?=\n---|$)/);
+  const interactionSection = text.match(/### (?:Interactions Between Drug Pairs|TÃ†Â°Ã†Â¡ng TÃƒÂ¡c GiÃ¡Â»Â¯a CÃƒÂ¡c CÃ¡ÂºÂ·p ThuÃ¡Â»â€˜c)\n([\s\S]*?)(?=\n---|$)/);
 
   if (interactionSection) {
     const pairs = interactionSection[1].split(/\n#### /).filter((pair) => pair.trim());
@@ -95,8 +92,8 @@ function parseDrugInteractions(text: string): DrugInteraction[] {
       if (drugMatch) {
         const drug1 = drugMatch[1].trim();
         const drug2 = drugMatch[2].trim();
-        // Match: **Chi tiết tương tác:** or **Chi tiết Tương Tác:** (case insensitive) followed by details
-        const detailsMatch = pair.match(/\*\*Chi tiết [Tt]ương [Tt]ác:\*\*\s*(.+?)(?=\n\n|\n#### |$)/s);
+        // Match: **Chi tiÃ¡ÂºÂ¿t tÃ†Â°Ã†Â¡ng tÃƒÂ¡c:** or **Chi tiÃ¡ÂºÂ¿t TÃ†Â°Ã†Â¡ng TÃƒÂ¡c:** (case insensitive) followed by details
+        const detailsMatch = pair.match(/\*\*(?:Interaction Details|Chi tiÃ¡ÂºÂ¿t [Tt]Ã†Â°Ã†Â¡ng [Tt]ÃƒÂ¡c):\*\*\s*(.+?)(?=\n\n|\n#### |$)/s);
         const details = detailsMatch ? detailsMatch[1].trim() : "";
 
         // Determine if there's an interaction:
@@ -105,12 +102,16 @@ function parseDrugInteractions(text: string): DrugInteraction[] {
         // - Otherwise, if there's actual content describing an interaction, there's an interaction
         const lowerDetails = details.toLowerCase();
         const noInteractionPhrases = [
-          "không có tương tác nào được biết đến",
-          "không tìm thấy tương tác",
-          "không có tương tác",
-          "không tìm thấy",
-          "an toàn",
-          "không có",
+          "no significant interaction",
+          "no interaction found",
+          "no interaction",
+          "safe",
+          "khÃƒÂ´ng cÃƒÂ³ tÃ†Â°Ã†Â¡ng tÃƒÂ¡c nÃƒÂ o Ã„â€˜Ã†Â°Ã¡Â»Â£c biÃ¡ÂºÂ¿t Ã„â€˜Ã¡ÂºÂ¿n",
+          "khÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y tÃ†Â°Ã†Â¡ng tÃƒÂ¡c",
+          "khÃƒÂ´ng cÃƒÂ³ tÃ†Â°Ã†Â¡ng tÃƒÂ¡c",
+          "khÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y",
+          "an toÃƒÂ n",
+          "khÃƒÂ´ng cÃƒÂ³",
         ];
 
         const hasInteraction = details.length > 0 && !noInteractionPhrases.some((phrase) => lowerDetails.includes(phrase));
@@ -130,31 +131,247 @@ function parseDrugInteractions(text: string): DrugInteraction[] {
 
 // Extract summary section
 function extractSummary(text: string): string {
-  const summaryMatch = text.match(/### Tóm Tắt Cuối Cùng\n([\s\S]*?)$/);
+  const summaryMatch = text.match(/### (?:Final Summary|TÃƒÂ³m TÃ¡ÂºÂ¯t CuÃ¡Â»â€˜i CÃƒÂ¹ng)\n([\s\S]*?)$/);
   return summaryMatch ? summaryMatch[1].trim() : "";
 }
 
-export function InteractionResults({ result, isLoading }: InteractionResultsProps) {
-  // Hooks must be called before any early returns
-  const { openChatbot } = useGlobalStore();
+function parseAnswerSummary(text: string): string {
+  const finalSummary = text.match(/###\s*Final Summary\s*\n([\s\S]*?)(?=\n###|$)/i);
+  if (finalSummary?.[1]?.trim()) {
+    return finalSummary[1].trim();
+  }
 
+  const overallRisk = text.match(/\*\*Overall Risk:\*\*[\s\S]*?(?=\n###|\n####|$)/i);
+  if (overallRisk?.[0]?.trim()) {
+    return overallRisk[0].trim();
+  }
+
+  return extractSummary(text);
+}
+
+function parseAnswerInteractions(text: string): DrugInteraction[] {
+  const interactions: DrugInteraction[] = [];
+  const sectionMatch = text.match(/###\s*Interactions Between Drug Pairs\s*\n([\s\S]*?)(?=\n###\s*Final Summary|$)/i);
+  const section = sectionMatch?.[1] || "";
+
+  if (section) {
+    const headingRegex = /####\s*(.+?)\s*\+\s*(.+?)\s*\n/g;
+    const headings = Array.from(section.matchAll(headingRegex));
+
+    headings.forEach((heading, index) => {
+      const start = (heading.index || 0) + heading[0].length;
+      const end = headings[index + 1]?.index ?? section.length;
+      const body = section.slice(start, end).trim();
+      const details =
+        body.match(/\*\*Interaction Details:\*\*\s*([\s\S]*?)(?=\n\*\*|\n####|$)/i)?.[1]?.trim() ||
+        body.replace(/\*\*Status:\*\*.*$/gim, "").trim();
+      const status = body.match(/\*\*Status:\*\*\s*(.+)/i)?.[1]?.trim() || "";
+      const lowerText = `${status}\n${details}`.toLowerCase();
+      const hasExplicitWarning = ["has interaction", "potential interaction", "interaction warning", "moderate", "major", "severe"].some((phrase) =>
+        lowerText.includes(phrase)
+      );
+      const isSafe =
+        !hasExplicitWarning &&
+        ["safe", "no interaction", "no significant interaction", "no clinically significant interaction", "not found"].some((phrase) =>
+          lowerText.includes(phrase)
+        );
+
+      interactions.push({
+        drug1: heading[1].trim(),
+        drug2: heading[2].trim(),
+        details,
+        hasInteraction: !isSafe && details.length > 0,
+      });
+    });
+  }
+
+  if (interactions.length > 0) {
+    return interactions;
+  }
+
+  const bulletRegex = /-\s*\*\*(.+?)\s+(?:and|\+)\s+(.+?):\*\*\s*([\s\S]*?)(?=\n-\s*\*\*|\n###|$)/gi;
+  Array.from(text.matchAll(bulletRegex)).forEach((match) => {
+    const details = match[3].trim();
+    const lowerDetails = details.toLowerCase();
+    const hasExplicitWarning = ["has interaction", "potential interaction", "interaction warning", "moderate", "major", "severe"].some((phrase) =>
+      lowerDetails.includes(phrase)
+    );
+    const isSafe =
+      !hasExplicitWarning &&
+      ["safe", "no interaction", "no significant interaction", "no clinically significant interaction", "not found"].some((phrase) =>
+        lowerDetails.includes(phrase)
+      );
+    interactions.push({
+      drug1: match[1].trim(),
+      drug2: match[2].trim(),
+      details,
+      hasInteraction: !isSafe && details.length > 0,
+    });
+  });
+
+  return interactions;
+}
+
+function parsedSummaryHasUsefulData(summaryData: ParsedResult["summary"] | undefined): boolean {
+  if (!summaryData) {
+    return false;
+  }
+
+  const risk = summaryData.overall_risk?.trim().toLowerCase();
+  return Boolean(
+    (risk && !["none", "low", "khong co", "khÃ´ng cÃ³"].includes(risk)) ||
+      (summaryData.major_interactions?.length || 0) > 0 ||
+      (summaryData.recommendations?.length || 0) > 0
+  );
+}
+
+function normalizeDrugName(name: string): string {
+  return name
+    .replace(/^[\s\-*]+/, "")
+    .replace(/[,+/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function tokenizeDrugName(name: string): string[] {
+  return normalizeDrugName(name)
+    .split(" ")
+    .filter((token) => token.length > 2);
+}
+
+function isDrugNameMatch(candidate: string, target: string): boolean {
+  const normalizedCandidate = normalizeDrugName(candidate);
+  const normalizedTarget = normalizeDrugName(target);
+
+  if (!normalizedCandidate || !normalizedTarget) {
+    return false;
+  }
+
+  if (normalizedCandidate === normalizedTarget) {
+    return true;
+  }
+
+  const targetTokens = tokenizeDrugName(target);
+  if (targetTokens.length === 0) {
+    return false;
+  }
+
+  return targetTokens.every((token) => normalizedCandidate.includes(token));
+}
+
+function isMultiDrugSearchUrl(link: string, targetName: string): boolean {
+  try {
+    const url = new URL(link);
+    if (!url.pathname.toLowerCase().startsWith("/search.php")) {
+      return false;
+    }
+
+    const searchTerm = url.searchParams.get("searchterm") || "";
+    const normalizedSearchTerm = normalizeDrugName(searchTerm);
+    const targetTokens = tokenizeDrugName(targetName);
+    const matchingTargetTokens = targetTokens.filter((token) => normalizedSearchTerm.includes(token)).length;
+    const searchTokens = tokenizeDrugName(searchTerm);
+
+    return searchTokens.length > targetTokens.length + 2 || matchingTargetTokens < Math.max(1, Math.min(2, targetTokens.length));
+  } catch {
+    return false;
+  }
+}
+
+function findDrugReference(name: string, drugLinks?: Record<string, string>): DrugReference | undefined {
+  if (!drugLinks) {
+    return undefined;
+  }
+
+  const match = Object.entries(drugLinks).find(([key]) => {
+    return isDrugNameMatch(key, name);
+  });
+
+  return match ? { name, link: match[1] } : undefined;
+}
+
+function getSafeDrugReferenceUrl(reference: DrugReference | undefined, fallbackName: string): string {
+  const searchUrl = `https://www.drugs.com/search.php?searchterm=${encodeURIComponent(fallbackName)}`;
+
+  if (!reference?.link) {
+    return searchUrl;
+  }
+
+  try {
+    const url = new URL(reference.link);
+    const isDrugsCom = url.hostname === "drugs.com" || url.hostname.endsWith(".drugs.com");
+
+    if (!isDrugsCom) {
+      return reference.link;
+    }
+
+    const path = url.pathname.toLowerCase();
+    const isKnownDrugsComSection = [
+      "/cdi/",
+      "/dosage/",
+      "/ingredient/",
+      "/international/",
+      "/mtm/",
+      "/natural/",
+      "/pregnancy/",
+      "/price-guide/",
+      "/pro/",
+      "/search.php",
+    ].some((prefix) => path.startsWith(prefix));
+
+    if (isKnownDrugsComSection && !isMultiDrugSearchUrl(reference.link, fallbackName)) {
+      return reference.link;
+    }
+
+    return searchUrl;
+  } catch {
+    return searchUrl;
+  }
+}
+
+function attachReferencesToInteractions(interactions: DrugInteraction[], drugLinks?: Record<string, string>): DrugInteraction[] {
+  return interactions.map((interaction) => ({
+    ...interaction,
+    reference1: interaction.reference1 ?? findDrugReference(interaction.drug1, drugLinks),
+    reference2: interaction.reference2 ?? findDrugReference(interaction.drug2, drugLinks),
+  }));
+}
+
+function attachReferencesToConversions(conversions: DrugConversion[], drugLinks?: Record<string, string>): DrugConversion[] {
+  return conversions.map((conversion) => ({
+    ...conversion,
+    reference: conversion.reference ?? findDrugReference(conversion.converted, drugLinks) ?? findDrugReference(conversion.original, drugLinks),
+  }));
+}
+
+export function InteractionResults({ result, isLoading }: InteractionResultsProps) {
   // Parse data first (even if we might return early)
   let drugConversions: DrugConversion[] = [];
   let drugInteractions: DrugInteraction[] = [];
   let summary: string = "";
   let parsedSummary: ParsedResult["summary"] | undefined = undefined;
   let answerText: string = "";
+  const drugLinks = typeof result === "string" ? undefined : result?.drug_links;
 
   if (result) {
     if (typeof result === "string") {
       // Old format: parse markdown string
       answerText = result;
       drugConversions = parseDrugConversions(result);
-      drugInteractions = parseDrugInteractions(result);
-      summary = extractSummary(result);
+      drugInteractions = parseAnswerInteractions(result);
+      if (drugInteractions.length === 0) {
+        drugInteractions = parseDrugInteractions(result);
+      }
+      summary = parseAnswerSummary(result);
     } else {
       // New format: use parsed_result if available, fallback to parsing answer
       answerText = result.answer || "";
+      const answerDrugConversions = parseDrugConversions(answerText);
+      const answerDrugInteractions = parseAnswerInteractions(answerText);
+      const legacyAnswerDrugInteractions = parseDrugInteractions(answerText);
+      const answerSummary = parseAnswerSummary(answerText);
+
       if (result.parsed_result) {
         // Use parsed data
         drugConversions = result.parsed_result.drug_conversion || [];
@@ -163,45 +380,57 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
             drug1: interaction.drug1,
             drug2: interaction.drug2,
             details: interaction.details,
-            hasInteraction: interaction.status === "Có Tương Tác",
+            hasInteraction:
+              ["Has Interaction", "Có Tương Tác"].includes(interaction.status) &&
+              !["no significant interaction", "no clinically significant interaction", "safe"].some((phrase) =>
+                interaction.details.toLowerCase().includes(phrase)
+              ),
             reference1: interaction.reference1,
             reference2: interaction.reference2,
           }));
         }
         parsedSummary = result.parsed_result.summary;
+
+        if (drugConversions.length === 0) {
+          drugConversions = answerDrugConversions;
+        }
+
+        if (drugInteractions.length === 0) {
+          drugInteractions = answerDrugInteractions.length > 0 ? answerDrugInteractions : legacyAnswerDrugInteractions;
+        }
+
         // Generate summary text from structured data
-        if (parsedSummary) {
-          summary = `**Rủi Ro Tổng Thể:** ${parsedSummary.overall_risk || "Không xác định"}\n\n`;
-          if (parsedSummary.major_interactions && parsedSummary.major_interactions.length > 0) {
-            summary += "**Các Tương Tác Chính:**\n";
-            parsedSummary.major_interactions.forEach((interaction) => {
+        const usefulParsedSummary = parsedSummaryHasUsefulData(parsedSummary) ? parsedSummary : undefined;
+        if (usefulParsedSummary) {
+          summary = `**Overall Risk:** ${usefulParsedSummary.overall_risk || "Unspecified"}\n\n`;
+          if (usefulParsedSummary.major_interactions && usefulParsedSummary.major_interactions.length > 0) {
+            summary += "**Key Interactions:**\n";
+            usefulParsedSummary.major_interactions.forEach((interaction) => {
               summary += `- ${interaction}\n`;
             });
             summary += "\n";
           }
-          if (parsedSummary.recommendations && parsedSummary.recommendations.length > 0) {
-            summary += "**Khuyến Nghị Lâm Sàng:**\n";
-            parsedSummary.recommendations.forEach((rec) => {
+          if (usefulParsedSummary.recommendations && usefulParsedSummary.recommendations.length > 0) {
+            summary += "**Clinical Recommendations:**\n";
+            usefulParsedSummary.recommendations.forEach((rec) => {
               summary += `- ${rec}\n`;
             });
           }
+        } else {
+          parsedSummary = undefined;
+          summary = answerSummary;
         }
       } else if (answerText) {
         // Fallback to parsing markdown
-        drugConversions = parseDrugConversions(answerText);
-        drugInteractions = parseDrugInteractions(answerText);
-        summary = extractSummary(answerText);
+        drugConversions = answerDrugConversions;
+        drugInteractions = answerDrugInteractions;
+        summary = answerSummary;
       }
     }
   }
 
-  // Auto-open chatbot when results are available
-  useEffect(() => {
-    const hasResults = drugInteractions.length > 0 || summary.length > 0 || drugConversions.length > 0;
-    if (hasResults && !isLoading) {
-      openChatbot();
-    }
-  }, [drugInteractions.length, summary.length, drugConversions.length, isLoading, openChatbot]);
+  drugConversions = attachReferencesToConversions(drugConversions, drugLinks);
+  drugInteractions = attachReferencesToInteractions(drugInteractions, drugLinks);
 
   if (isLoading) {
     return (
@@ -209,11 +438,11 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-            Đang Phân Tích Tương Tác...
+            Analyzing Interactions...
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">Đang kiểm tra tương tác thuốc trong cơ sở dữ liệu...</p>
+          <p className="text-sm text-muted-foreground">Checking drug interactions in the database...</p>
         </CardContent>
       </Card>
     );
@@ -231,14 +460,10 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
   let hasRisk = false;
   if (parsedSummary?.overall_risk) {
     const riskLevel = parsedSummary.overall_risk.toLowerCase();
-    hasRisk = !["không có", "thấp", "không xác định"].some((safe) => riskLevel.includes(safe));
+    hasRisk = !["none", "low", "khong co", "thap", "khong xac dinh"].some((safe) => riskLevel.includes(safe));
   } else if (summary) {
-    // Fallback to parsing summary text only if no parsed summary
     const lowerSummary = summary.toLowerCase();
-    hasRisk =
-      lowerSummary.includes("rủi ro tổng thể") &&
-      !lowerSummary.includes("rủi ro tổng thể: không có") &&
-      !lowerSummary.includes("rủi ro tổng thể: thấp");
+    hasRisk = !lowerSummary.includes("overall risk: none") && !lowerSummary.includes("overall risk: low");
   }
 
   // Only check warning keywords if we DON'T have parsed data (fallback for old format)
@@ -248,17 +473,17 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
   if (!hasParsedData && drugInteractions.length > 0) {
     const lowerAnswerText = answerText.toLowerCase();
     hasWarningKeywords =
-      lowerAnswerText.includes("nghiêm trọng") ||
-      lowerAnswerText.includes("nguy hiểm") ||
-      lowerAnswerText.includes("chống chỉ định") ||
-      lowerAnswerText.includes("chảy máu") ||
-      lowerAnswerText.includes("độc tính");
+      lowerAnswerText.includes("nghiÃƒÂªm trÃ¡Â»Âng") ||
+      lowerAnswerText.includes("nguy hiÃ¡Â»Æ’m") ||
+      lowerAnswerText.includes("chÃ¡Â»â€˜ng chÃ¡Â»â€° Ã„â€˜Ã¡Â»â€¹nh") ||
+      lowerAnswerText.includes("chÃ¡ÂºÂ£y mÃƒÂ¡u") ||
+      lowerAnswerText.includes("Ã„â€˜Ã¡Â»â„¢c tÃƒÂ­nh");
   }
 
   // Severity: prioritize actual parsed interactions
   // If no interactions in table, always show safe (regardless of risk level in summary)
   // Risk level in summary should only be used as additional context when there ARE interactions
-  // This ensures consistency: if table shows "An Toàn" for all pairs, header should also be safe
+  // This ensures consistency: if table shows "An ToÃƒÂ n" for all pairs, header should also be safe
   const severity: "info" | "warning" | "safe" = hasAnyInteraction || (hasRisk && hasAnyInteraction) || hasWarningKeywords ? "warning" : "safe";
 
   const getIcon = () => {
@@ -275,11 +500,11 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
   const getTitle = () => {
     switch (severity) {
       case "safe":
-        return "Không Tìm Thấy Tương Tác";
+        return "No Interactions Found";
       case "warning":
-        return "Cảnh Báo Tương Tác";
+        return "Interaction Warning";
       default:
-        return "Thông Tin Tương Tác";
+        return "Interaction Information";
     }
   };
 
@@ -291,8 +516,8 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
           severity === "safe"
             ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
             : severity === "warning"
-            ? undefined
-            : "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800"
+              ? undefined
+              : "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800"
         }
       >
         <div className="flex items-start gap-3">
@@ -307,7 +532,7 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
       {summary && (
         <Card className="border-2 border-primary shadow-xl ring-2 ring-primary/20 bg-gradient-to-br from-primary/10 via-background to-primary/10">
           <CardHeader className="bg-gradient-to-r from-primary/15 to-transparent border-b-2 border-primary/30">
-            <CardTitle className="text-lg font-semibold">Tóm Tắt Cuối Cùng</CardTitle>
+            <CardTitle className="text-lg font-semibold">Final Summary</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="markdown-content text-base leading-relaxed font-medium">
@@ -338,14 +563,14 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
       {drugConversions.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Chuyển Đổi Tên Thuốc</CardTitle>
+            <CardTitle className="text-lg">Drug Name Conversions</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-1/2">Tên Gốc</TableHead>
-                  <TableHead className="w-1/2">Tên Đã Chuyển Đổi</TableHead>
+                  <TableHead className="w-1/2">Original Name</TableHead>
+                  <TableHead className="w-1/2">Converted Name</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -353,9 +578,9 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
                   <TableRow key={index}>
                     <TableCell className="font-medium">
                       {conv.original}
-                      {conv.reference?.link && (
+                      {getSafeDrugReferenceUrl(conv.reference, conv.converted || conv.original) && (
                         <a
-                          href={conv.reference.link}
+                          href={getSafeDrugReferenceUrl(conv.reference, conv.converted || conv.original)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="ml-2 inline-flex items-center gap-1 text-primary hover:underline text-xs"
@@ -377,17 +602,17 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
       {drugInteractions.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Tương Tác Giữa Các Cặp Thuốc</CardTitle>
+            <CardTitle className="text-lg">Interactions Between Drug Pairs</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[20%]">Thuốc 1</TableHead>
-                    <TableHead className="w-[20%]">Thuốc 2</TableHead>
-                    <TableHead className="w-[15%]">Trạng Thái</TableHead>
-                    <TableHead className="w-[45%]">Chi Tiết Tương Tác</TableHead>
+                    <TableHead className="w-[20%]">Drug 1</TableHead>
+                    <TableHead className="w-[20%]">Drug 2</TableHead>
+                    <TableHead className="w-[15%]">Status</TableHead>
+                    <TableHead className="w-[45%]">Interaction Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -395,9 +620,9 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
                     <TableRow key={index}>
                       <TableCell className="font-medium whitespace-normal">
                         {interaction.drug1}
-                        {interaction.reference1?.link && (
+                        {getSafeDrugReferenceUrl(interaction.reference1, interaction.drug1) && (
                           <a
-                            href={interaction.reference1.link}
+                            href={getSafeDrugReferenceUrl(interaction.reference1, interaction.drug1)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="ml-2 inline-flex items-center gap-1 text-primary hover:underline text-xs"
@@ -408,9 +633,9 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
                       </TableCell>
                       <TableCell className="font-medium whitespace-normal">
                         {interaction.drug2}
-                        {interaction.reference2?.link && (
+                        {getSafeDrugReferenceUrl(interaction.reference2, interaction.drug2) && (
                           <a
-                            href={interaction.reference2.link}
+                            href={getSafeDrugReferenceUrl(interaction.reference2, interaction.drug2)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="ml-2 inline-flex items-center gap-1 text-primary hover:underline text-xs"
@@ -423,12 +648,12 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
                         {interaction.hasInteraction ? (
                           <span className="inline-flex items-center gap-1 text-destructive">
                             <AlertTriangle className="h-4 w-4" />
-                            <span className="text-xs font-medium">Có Tương Tác</span>
+                            <span className="text-xs font-medium">Has Interaction</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
                             <CheckCircle className="h-4 w-4" />
-                            <span className="text-xs font-medium">An Toàn</span>
+                            <span className="text-xs font-medium">Safe</span>
                           </span>
                         )}
                       </TableCell>
@@ -441,9 +666,6 @@ export function InteractionResults({ result, isLoading }: InteractionResultsProp
           </CardContent>
         </Card>
       )}
-
-      {/* Chatbot Inline - Show below results */}
-      <ChatbotInline />
 
       {/* Fallback: If parsing fails, show original markdown */}
       {drugConversions.length === 0 && drugInteractions.length === 0 && !summary && (

@@ -21,7 +21,7 @@ def basic_example():
     # Create agent with default settings
     agent = create_agent(
         data_filepath="TWOSIDES_preprocessed.csv",
-        model_name="gpt-3.5-turbo",
+        model_name="gemini-3.1-flash-lite",
         verbose=False,  # Set to True to see agent reasoning
     )
 
@@ -125,7 +125,7 @@ def custom_configuration_example():
     # Create agent with custom settings
     agent = create_agent(
         data_filepath="TWOSIDES_preprocessed.csv",
-        model_name=os.getenv("OPENAI_MODEL", "gpt-3.5-turbo"),
+        model_name=os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite"),
         verbose=True,  # Show agent reasoning process
     )
 
@@ -143,9 +143,9 @@ def main():
     print("=" * 70 + "\n")
 
     # Check for API key
-    if not os.getenv("OPENAI_API_KEY"):
-        print("❌ Error: OPENAI_API_KEY not found!")
-        print("Please set your OpenAI API key in .env file or environment.")
+    if not os.getenv("GEMINI_API_KEY"):
+        print("❌ Error: GEMINI_API_KEY not found!")
+        print("Please set your Gemini API key in .env file or environment.")
         print("See ENV_SETUP.md for instructions.\n")
         return
 
@@ -172,7 +172,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Error: {e}")
         print("\nTroubleshooting:")
-        print("  • Ensure OPENAI_API_KEY is set")
+        print("  • Ensure GEMINI_API_KEY is set")
         print("  • Run: python test_agent.py")
         print("  • Check ENV_SETUP.md for configuration help\n")
 

@@ -28,7 +28,7 @@ def test_llm_drug_mapping():
     # Initialize the LangGraph agent with drug mapping enabled
     print("\n[2] Initializing AI agent with LLM-based drug mapping...")
     agent = LangGraphAgent(
-        graph=graph, model_name="gpt-4o-mini", enable_drug_mapping=True, verbose=True
+        graph=graph, model_name="gemini-3.1-flash-lite", enable_drug_mapping=True, verbose=True
     )
     print("✓ Agent initialized with LLM drug name conversion enabled")
 
@@ -75,7 +75,7 @@ def test_explicit_mapping():
     graph.load_from_csv("TWOSIDES_preprocessed.csv")
 
     agent = LangGraphAgent(
-        graph=graph, model_name="gpt-4o-mini", enable_drug_mapping=True, verbose=False
+        graph=graph, model_name="gemini-3.1-flash-lite", enable_drug_mapping=True, verbose=False
     )
 
     # Test explicit mapping

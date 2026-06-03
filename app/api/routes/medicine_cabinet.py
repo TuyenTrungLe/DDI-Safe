@@ -1,11 +1,10 @@
 """Medicine Cabinet API endpoints."""
 
 import asyncio
-from datetime import datetime
 from typing import List
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks
 from app.agents.models import DrugInteraction
-from app.models.requests import AddDrugRequest
+from app.models.requests import AddDrugRequest, SaveInteractionCheckRequest
 from app.models.responses import (
     AddDrugResponse,
     MedicineCabinetListResponse,
@@ -13,8 +12,10 @@ from app.models.responses import (
     DrugInteractionInfo,
     DrugWithInteractions,
     ErrorResponse,
+    InteractionCheckHistoryResponse,
+    SaveInteractionCheckResponse,
 )
-from app.core.medicine_cabinet import medicine_cabinet_manager
+from app.core.medicine_cabinet import medicine_cabinet_manager, utc_now_iso
 from app.core.agent import agent_manager
 
 router = APIRouter()
@@ -56,7 +57,7 @@ async def check_drug_interactions_background(
                 )
                 print(f"interaction_result: {interaction_result}")
                 for interaction in interaction_result:
-                    details = f"Tương tác giữa {interaction['drug1']} và {interaction['drug2']}: {interaction['details']}"
+                    details = f"Interaction between {interaction['drug1']} and {interaction['drug2']}: {interaction['details']}"
 
                     medicine_cabinet_manager.save_interaction_result(
                         user_id=user_id,
@@ -126,11 +127,11 @@ async def add_drug(request: AddDrugRequest, background_tasks: BackgroundTasks):
     if medicine_cabinet_manager.has_drug(user_id, drug_name):
         return AddDrugResponse(
             success=False,
-            message=f"Drug '{drug_name}' already exists in medicine cabinet",
+            message=f"Drug '{drug_name}' already exists in the medicine cabinet",
             drug_name=drug_name,
             user_id=user_id,
             checking_interactions=False,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=utc_now_iso(),
         )
 
     # Get existing drugs before adding
@@ -156,11 +157,11 @@ async def add_drug(request: AddDrugRequest, background_tasks: BackgroundTasks):
         checking_interactions = True
         message = (
             f"Drug '{drug_name}' added successfully. "
-            f"Checking interactions with {len(existing_drugs)} existing drug(s) in background."
+            f"Checking interactions with {len(existing_drugs)} existing drug(s) in the background."
         )
     else:
         checking_interactions = False
-        message = f"Drug '{drug_name}' added successfully. No existing drugs to check interactions with."
+        message = f"Drug '{drug_name}' added successfully. No existing drugs to check for interactions."
 
     return AddDrugResponse(
         success=True,
@@ -168,7 +169,7 @@ async def add_drug(request: AddDrugRequest, background_tasks: BackgroundTasks):
         drug_name=drug_name,
         user_id=user_id,
         checking_interactions=checking_interactions,
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=utc_now_iso(),
     )
 
 
@@ -223,8 +224,97 @@ async def list_medicine_cabinet(user_id: str = "admin"):
         user_id=user_id,
         drugs=drugs_with_interactions,
         count=len(drugs),
-        timestamp=datetime.utcnow().isoformat(),
+        stats=medicine_cabinet_manager.get_cabinet_stats(user_id),
+        timestamp=utc_now_iso(),
     )
+
+
+@router.post(
+    "/check-history",
+    response_model=SaveInteractionCheckResponse,
+    summary="Save Interaction Check History",
+    description="Save a complete interaction check result for the user's history",
+    tags=["Medicine Cabinet"],
+    responses={
+        200: {"description": "Interaction check saved successfully"},
+        400: {"model": ErrorResponse, "description": "Invalid request"},
+    },
+)
+async def save_interaction_check_history(request: SaveInteractionCheckRequest):
+    """
+    Save a completed interaction check as history.
+
+    This keeps check results separate from medicine cabinet items because a DDI
+    result depends on the exact drug combination checked at that time.
+    """
+    user_id = request.user_id or "admin"
+    checked_drugs = [drug.strip() for drug in request.checked_drugs if drug.strip()]
+
+    if not checked_drugs:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one checked drug is required",
+        )
+
+    record = medicine_cabinet_manager.save_interaction_check(
+        user_id=user_id,
+        checked_drugs=checked_drugs,
+        result_payload=request.result,
+        source=request.source or "interaction_check",
+    )
+
+    return SaveInteractionCheckResponse(
+        success=True,
+        message="Interaction check saved successfully",
+        record=record,
+        stats=medicine_cabinet_manager.get_cabinet_stats(user_id),
+        timestamp=utc_now_iso(),
+    )
+
+
+@router.get(
+    "/check-history",
+    response_model=InteractionCheckHistoryResponse,
+    summary="List Interaction Check History",
+    description="Get saved interaction check history and derived stats",
+    tags=["Medicine Cabinet"],
+    responses={200: {"description": "Successfully retrieved interaction history"}},
+)
+async def list_interaction_check_history(user_id: str = "admin", limit: int = 20):
+    """
+    List recent interaction check records for a user.
+    """
+    history = medicine_cabinet_manager.get_check_history(user_id, limit=limit)
+
+    return InteractionCheckHistoryResponse(
+        user_id=user_id,
+        history=history,
+        stats=medicine_cabinet_manager.get_cabinet_stats(user_id),
+        count=len(history),
+        timestamp=utc_now_iso(),
+    )
+
+
+@router.delete(
+    "/check-history",
+    summary="Clear Interaction Check History",
+    description="Clear saved interaction check history for a user",
+    tags=["Medicine Cabinet"],
+    responses={200: {"description": "Interaction check history cleared successfully"}},
+)
+async def clear_interaction_check_history(user_id: str = "admin"):
+    """
+    Clear only the user's saved interaction check history.
+    """
+    medicine_cabinet_manager.clear_check_history(user_id)
+
+    return {
+        "success": True,
+        "message": f"Interaction check history cleared for user '{user_id}'",
+        "user_id": user_id,
+        "stats": medicine_cabinet_manager.get_cabinet_stats(user_id),
+        "timestamp": utc_now_iso(),
+    }
 
 
 @router.delete(
@@ -258,7 +348,7 @@ async def remove_drug(drug_name: str, user_id: str = "admin"):
         "message": f"Drug '{drug_name}' removed successfully",
         "drug_name": drug_name,
         "user_id": user_id,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": utc_now_iso(),
     }
 
 
@@ -314,7 +404,7 @@ async def get_drug_interactions(drug_name: str, user_id: str = "admin"):
         user_id=user_id,
         interactions=interactions_found,
         total_interactions=len(interactions_found),
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=utc_now_iso(),
     )
 
 
@@ -340,5 +430,5 @@ async def clear_medicine_cabinet(user_id: str = "admin"):
         "success": True,
         "message": f"Medicine cabinet cleared for user '{user_id}'",
         "user_id": user_id,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": utc_now_iso(),
     }

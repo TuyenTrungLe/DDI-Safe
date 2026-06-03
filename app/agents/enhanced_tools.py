@@ -6,15 +6,18 @@ Extends the basic drug interaction tools with drug name mapping capabilities.
 
 import re
 import os
+from urllib.parse import quote_plus
 from typing import List
 import importlib.util
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
-from openai import OpenAI
+from google import genai
+from google.genai import types
 from drug_interaction_graph import DrugInteractionGraph
-
+from ..core.config import settings
+# Ensure os is imported for getenv
 # Check if drug mapping is available
 DRUG_MAPPING_AVAILABLE = importlib.util.find_spec("app.core.drug_mapper") is not None
 
@@ -39,7 +42,7 @@ class EnhancedDrugInteractionTools:
         self,
         graph: DrugInteractionGraph,
         enable_drug_mapping: bool = True,
-        model_name: str = "gpt-4.1-nano-2025-04-14",
+        model_name: str = "gemini-3.1-flash-lite",
     ):
         """
         Initialize enhanced tools with a drug interaction graph and optional mapping.
@@ -51,7 +54,16 @@ class EnhancedDrugInteractionTools:
         """
         self.graph = graph
         self.enable_drug_mapping = enable_drug_mapping and DRUG_MAPPING_AVAILABLE
-        self.llm = ChatOpenAI(model=model_name, temperature=0.0)
+
+        api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY is missing")
+
+        self.llm = ChatGoogleGenerativeAI(
+            model=model_name,
+            temperature=0.0,
+            google_api_key=api_key,
+        )
 
     @staticmethod
     def _parse_two_drugs(query: str) -> tuple[str | None, str | None]:
@@ -157,12 +169,23 @@ Respond with high confidence if you're certain, medium if somewhat certain, low 
         Returns:
             List of extracted drug names
         """
-        # Common separators for drug combinations
-        separators = r"\b(?:and|with|,|&|\+)\b"
+        # Common separators for drug combinations. Punctuation separators should
+        # not be wrapped in word boundaries or comma-separated drug lists will
+        # be treated as one long search term.
+        separators = r"\s*(?:,|\+|&|\band\b|\bwith\b)\s*"
 
         # Split by separators and clean up
         potential_drugs = re.split(separators, query, flags=re.IGNORECASE)
-        potential_drugs = [drug.strip() for drug in potential_drugs if drug.strip()]
+        potential_drugs = [
+            re.sub(
+                r"^(?:what are the interactions between|what are the interactions for|show me all interactions for|check interactions between|interactions between)\s+",
+                "",
+                drug.strip(),
+                flags=re.IGNORECASE,
+            ).strip(" ?.:-")
+            for drug in potential_drugs
+            if drug.strip()
+        ]
 
         # Also look for capitalized words (likely drug names)
         capitalized_words = re.findall(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b", query)
@@ -220,8 +243,9 @@ Respond with high confidence if you're certain, medium if somewhat certain, low 
         """
         graph = self.graph
 
-        # Initialize OpenAI client for web search
-        openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # Initialize Gemini client for web search
+        api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
+        gemini_client = genai.Client(api_key=api_key)
 
         @tool
         def find_drug_detail_links(query: str) -> str:
@@ -255,19 +279,20 @@ Respond with high confidence if you're certain, medium if somewhat certain, low 
 
             for drug_name in drug_names:
                 try:
-                    # Use OpenAI client with web search to find drug link
-                    completion = openai_client.chat.completions.create(
-                        model="gpt-4o-search-preview",
-                        web_search_options={},
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": f"Find me drug detail link of drug '{drug_name}' on drugs.com. Return only the URL.",
-                            }
-                        ],
+                    # Use Gemini with Google Search grounding to find drug link.
+                    completion = gemini_client.models.generate_content(
+                        model=settings.GEMINI_MODEL,
+                        contents=(
+                            f"Find me drug detail link of drug '{drug_name}' on drugs.com. "
+                            "Return only one URL."
+                        ),
+                        config=types.GenerateContentConfig(
+                            tools=[types.Tool(google_search=types.GoogleSearch())],
+                            max_output_tokens=300,
+                        ),
                     )
 
-                    response_text = completion.choices[0].message.content
+                    response_text = completion.text or ""
 
                     # Extract URL from response
                     url_patterns = [
@@ -289,20 +314,14 @@ Respond with high confidence if you're certain, medium if somewhat certain, low 
                                 break
 
                     if not url_found:
-                        # Fallback: construct URL manually
-                        drug_slug = re.sub(r"[^a-z0-9\s-]", "", drug_name.lower())
-                        drug_slug = re.sub(r"\s+", "-", drug_slug.strip())
-                        fallback_url = f"https://www.drugs.com/{drug_slug}.html"
+                        fallback_url = f"https://www.drugs.com/search.php?searchterm={quote_plus(drug_name)}"
                         drug_links_dict[drug_name] = fallback_url
-                        results.append(f"- {drug_name}: {fallback_url} (estimated)")
+                        results.append(f"- {drug_name}: {fallback_url}")
 
                 except Exception:
-                    # Fallback on error
-                    drug_slug = re.sub(r"[^a-z0-9\s-]", "", drug_name.lower())
-                    drug_slug = re.sub(r"\s+", "-", drug_slug.strip())
-                    fallback_url = f"https://www.drugs.com/{drug_slug}.html"
+                    fallback_url = f"https://www.drugs.com/search.php?searchterm={quote_plus(drug_name)}"
                     drug_links_dict[drug_name] = fallback_url
-                    results.append(f"- {drug_name}: {fallback_url} (estimated)")
+                    results.append(f"- {drug_name}: {fallback_url}")
 
             if results:
                 return "Drug Information Links (drugs.com):\n" + "\n".join(results)

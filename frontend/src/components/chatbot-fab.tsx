@@ -25,7 +25,7 @@ const ChatbotFab = ({ show = true }: ChatbotFabProps) => {
         onClick={handleOpenChatbot}
       >
         <Avatar className="h-full w-full">
-          <AvatarImage src="bot.svg" draggable={false} loading="eager" />
+          <AvatarImage src="/bot.svg" draggable={false} loading="eager" />
           <AvatarFallback>MB</AvatarFallback>
         </Avatar>
         <span className="sr-only">Open chatbot</span>

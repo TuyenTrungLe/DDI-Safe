@@ -1,55 +1,56 @@
 """
-Medical Specialist Agent using GPT-4o Search Preview.
+Medical Specialist Agent using Gemini with Google Search grounding.
 
-This agent uses gpt-4o-search-preview model which has built-in search capabilities
+This agent uses a Gemini model and can invoke Google Search grounding
 to search for valid medical knowledge corresponding to questions.
 """
 
 import os
 import logging
 from typing import Optional, List, Dict
-from openai import OpenAI
+from google import genai
+from google.genai import types
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class MedicalSpecialistAgent:
     """
-    Medical specialist agent using GPT-4o Search Preview.
+    Medical specialist agent using Gemini + Google Search grounding.
 
-    Uses gpt-4o-search-preview model which has built-in search capabilities
-    to search for valid medical knowledge and answer questions.
+    Uses Gemini model with Google Search tool to answer questions.
     """
 
     def __init__(
         self,
-        model_name: str = "gpt-4o-search-preview",
+        model_name: str = "gemini-3.1-flash-lite",
         temperature: float = 0.3,
         verbose: bool = False,
-        openai_api_key: Optional[str] = None,
+        gemini_api_key: Optional[str] = None,
     ):
         """
         Initialize the medical specialist agent.
 
         Args:
-            model_name: OpenAI model to use (default: gpt-4o-search-preview)
+            model_name: Gemini model to use
             temperature: Model temperature (0.3 for balanced creativity/accuracy)
             verbose: Whether to print debug information
-            openai_api_key: OpenAI API key (defaults to env var OPENAI_API_KEY)
+            gemini_api_key: Gemini API key (defaults to env var GEMINI_API_KEY)
         """
         self.model_name = model_name
         self.temperature = temperature
         self.verbose = verbose
 
-        # Initialize OpenAI client
-        api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
+        # Initialize Gemini client
+        api_key = gemini_api_key or settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise ValueError(
-                "OpenAI API key not found. Set OPENAI_API_KEY environment variable "
-                "or pass openai_api_key parameter."
+                "Gemini API key not found. Set GEMINI_API_KEY environment variable "
+                "or pass gemini_api_key parameter."
             )
 
-        self.openai_client = OpenAI(api_key=api_key)
+        self.gemini_client = genai.Client(api_key=api_key)
 
         if self.verbose:
             logger.info(
@@ -63,7 +64,7 @@ class MedicalSpecialistAgent:
         context: Optional[str] = None,
     ) -> str:
         """
-        Answer a medical question using GPT-4o Search Preview.
+        Answer a medical question using Gemini + Google Search grounding.
 
         The model will automatically search for valid medical knowledge
         corresponding to the question.
@@ -96,10 +97,8 @@ If you cannot find relevant information, use your medical knowledge but clearly 
 
 Always provide clear, understandable explanations suitable for both healthcare professionals and patients."""
 
-            # Prepare messages list for OpenAI API
-            messages: List[Dict[str, str]] = [
-                {"role": "system", "content": system_prompt}
-            ]
+            # Build a single grounded prompt for Gemini.
+            prompt_parts: List[str] = [system_prompt]
 
             # Add chat history if available
             if chat_history:
@@ -108,7 +107,7 @@ Always provide clear, understandable explanations suitable for both healthcare p
                         role = msg.get("role")
                         content = msg.get("content", "")
                         if role in ["user", "assistant", "system"]:
-                            messages.append({"role": role, "content": content})
+                            prompt_parts.append(f"{role.upper()}: {content}")
 
             # Build the user message with context
             user_message_parts = []
@@ -134,18 +133,12 @@ Always provide clear, understandable explanations suitable for both healthcare p
                 )
 
             user_message = "\n".join(user_message_parts)
-            messages.append({"role": "user", "content": user_message})
+            prompt_parts.append(f"USER: {user_message}")
 
-            # Call OpenAI API directly with web_search_options
-            completion = self.openai_client.chat.completions.create(
-                # model=self.model_name,
-                # temperature=self.temperature,
-                model="gpt-4o-search-preview",
-                web_search_options={},
-                messages=messages,
-            )
+            prompt = "\n\n".join(prompt_parts)
+            completion = self._generate_content(prompt, use_google_search=True)
 
-            answer = completion.choices[0].message.content
+            answer = completion.text
 
             if self.verbose:
                 logger.info(f"Medical specialist answered question: {question[:50]}...")
@@ -153,25 +146,59 @@ Always provide clear, understandable explanations suitable for both healthcare p
             return answer or "I couldn't generate a response."
 
         except Exception as e:
-            error_msg = f"Error processing medical query: {str(e)}"
-            logger.error(error_msg)
-            return error_msg
+            error_text = str(e)
+            logger.error(f"Error processing medical query: {error_text}")
+
+            if self._is_quota_or_rate_limit_error(error_text):
+                return "Gemini is currently rate-limited. Please wait a moment and try again."
+
+            return f"Sorry, this question cannot be processed right now: {error_text}"
+
+    def _generate_content(self, prompt: str, use_google_search: bool):
+        """Call Gemini, falling back to a non-grounded call if Google Search quota is exhausted."""
+        config_kwargs = {
+            "temperature": self.temperature,
+            "max_output_tokens": 2000,
+        }
+
+        if use_google_search:
+            config_kwargs["tools"] = [types.Tool(google_search=types.GoogleSearch())]
+
+        try:
+            return self.gemini_client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(**config_kwargs),
+            )
+        except Exception as e:
+            error_text = str(e)
+            if use_google_search and self._is_quota_or_rate_limit_error(error_text):
+                logger.warning(
+                    "Gemini Google Search grounding hit quota/rate limit; retrying without search grounding."
+                )
+                return self._generate_content(prompt, use_google_search=False)
+            raise
+
+    @staticmethod
+    def _is_quota_or_rate_limit_error(error_text: str) -> bool:
+        normalized = error_text.lower()
+        return "resource_exhausted" in normalized or "429" in normalized or "quota" in normalized or "rate limit" in normalized
 
 
 def create_medical_specialist_agent(
-    model_name: str = "gpt-4o-search-preview",
+    model_name: str = "gemini-3.1-flash-lite",
     temperature: float = 0.3,
     verbose: bool = False,
-    openai_api_key: Optional[str] = None,
+    gemini_api_key: Optional[str] = None,
 ) -> MedicalSpecialistAgent:
     """
     Convenience function to create a medical specialist agent.
 
     Args:
-        model_name: OpenAI model to use (default: gpt-4o-search-preview)
+        model_name: Gemini model to use
         temperature: Model temperature
         verbose: Whether to print debug information
-        openai_api_key: OpenAI API key (defaults to env var OPENAI_API_KEY)
+        gemini_api_key: Gemini API key (defaults to env var GEMINI_API_KEY)
 
     Returns:
         Initialized MedicalSpecialistAgent
@@ -180,5 +207,5 @@ def create_medical_specialist_agent(
         model_name=model_name,
         temperature=temperature,
         verbose=verbose,
-        openai_api_key=openai_api_key,
+        gemini_api_key=gemini_api_key,
     )

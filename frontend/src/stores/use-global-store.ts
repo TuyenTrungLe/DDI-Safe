@@ -5,6 +5,7 @@ interface GlobalState {
   globalLoading: boolean;
   clientId: string;
   isChatbotOpen: boolean;
+  interactionContext: string[];
 }
 
 export interface GlobalStore extends GlobalState {
@@ -13,6 +14,8 @@ export interface GlobalStore extends GlobalState {
   setClientId: (value: string) => void;
   openChatbot: () => void;
   closeChatbot: () => void;
+  setInteractionContext: (value: string[]) => void;
+  clearInteractionContext: () => void;
 }
 
 const initialState: Pick<GlobalStore, keyof GlobalState> = {
@@ -20,6 +23,7 @@ const initialState: Pick<GlobalStore, keyof GlobalState> = {
   globalLoading: false,
   clientId: "",
   isChatbotOpen: false,
+  interactionContext: [],
 };
 
 const useGlobalStore = create<GlobalStore>((set) => ({
@@ -29,6 +33,8 @@ const useGlobalStore = create<GlobalStore>((set) => ({
   setClientId: (value: string) => set(() => ({ clientId: value })),
   openChatbot: () => set(() => ({ isChatbotOpen: true })),
   closeChatbot: () => set(() => ({ isChatbotOpen: false })),
+  setInteractionContext: (value: string[]) => set(() => ({ interactionContext: value })),
+  clearInteractionContext: () => set(() => ({ interactionContext: [] })),
 }));
 
 export default useGlobalStore;

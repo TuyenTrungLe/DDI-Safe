@@ -36,15 +36,15 @@ export function MultiImageResults({ results, onRemoveImage, onRetryImage }: Mult
 
   const getStatusText = (result: ImageResult) => {
     if (result.isLoading) {
-      return "Đang xử lý...";
+      return "Processing...";
     }
     if (result.error) {
-      return "Lỗi";
+      return "Error";
     }
     if (result.extractedIngredients.length > 0) {
-      return `${result.extractedIngredients.length} thành phần đã tìm thấy`;
+      return `${result.extractedIngredients.length} ingredients found`;
     }
-    return "Không tìm thấy thành phần";
+    return "No ingredients found";
   };
 
   const getStatusColor = (result: ImageResult) => {
@@ -67,8 +67,8 @@ export function MultiImageResults({ results, onRemoveImage, onRetryImage }: Mult
   return (
     <Card className="border-2 shadow-lg">
       <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b">
-        <CardTitle className="text-xl font-bold">Thành Phần Hoạt Chất Đã Trích Xuất</CardTitle>
-        <CardDescription className="text-base">Xem lại các thành phần hoạt chất được trích xuất từ mỗi hình ảnh thuốc</CardDescription>
+        <CardTitle className="text-xl font-bold">Extracted Active Ingredients</CardTitle>
+        <CardDescription className="text-base">Review the active ingredients extracted from each drug image</CardDescription>
       </CardHeader>
       <CardContent className="pt-6 mt-4">
         <div className="space-y-4">
@@ -81,7 +81,7 @@ export function MultiImageResults({ results, onRemoveImage, onRetryImage }: Mult
                     <div className="w-36 h-36 shrink-0 relative group">
                       <img
                         src={result.preview}
-                        alt={`Nhãn thuốc ${index + 1}`}
+                        alt={`Drug label ${index + 1}`}
                         className="w-full h-full object-cover cursor-pointer transition-transform duration-200 group-hover:scale-105"
                         onClick={() => setExpandedImage(expandedImage === result.file.name ? null : result.file.name)}
                       />
@@ -112,7 +112,7 @@ export function MultiImageResults({ results, onRemoveImage, onRetryImage }: Mult
                           {/* Extracted Ingredients */}
                           {result.extractedIngredients.length > 0 && (
                             <div className="space-y-2">
-                              <p className="text-sm font-semibold text-foreground mb-2">Thành Phần Hoạt Chất:</p>
+                              <p className="text-sm font-semibold text-foreground mb-2">Active Ingredients:</p>
                               <div className="flex flex-wrap gap-2">
                                 {result.extractedIngredients.map((ingredient, idx) => (
                                   <Badge
@@ -137,7 +137,7 @@ export function MultiImageResults({ results, onRemoveImage, onRetryImage }: Mult
                               onClick={() => onRetryImage(result.file.name)}
                               className="shadow-sm hover:shadow-md transition-all duration-200"
                             >
-                              Thử Lại
+                              Retry
                             </Button>
                           )}
                           <Button
@@ -146,7 +146,7 @@ export function MultiImageResults({ results, onRemoveImage, onRetryImage }: Mult
                             onClick={() => onRemoveImage(result.file.name)}
                             className="shadow-sm hover:shadow-md transition-all duration-200"
                           >
-                            Xóa
+                            Remove
                           </Button>
                         </div>
                       </div>
@@ -161,8 +161,8 @@ export function MultiImageResults({ results, onRemoveImage, onRetryImage }: Mult
                   <div className="bg-card rounded-lg max-w-4xl max-h-[90vh] overflow-auto">
                     <div className="p-4 border-b border-border flex items-center justify-between">
                       <h3 className="text-lg font-semibold">{result.file.name}</h3>
-                      <Button variant="outline" size="sm" onClick={() => setExpandedImage(null)}>
-                        Đóng
+                        <Button variant="outline" size="sm" onClick={() => setExpandedImage(null)}>
+                        Close
                       </Button>
                     </div>
                     <div className="p-4">
@@ -179,10 +179,10 @@ export function MultiImageResults({ results, onRemoveImage, onRetryImage }: Mult
         <div className="mt-6 p-4 bg-gradient-to-r from-muted/50 to-muted/30 rounded-lg border-2 border-muted">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground font-medium">
-              Tổng số hình ảnh: <span className="font-semibold text-foreground">{results.length}</span>
+              Total images: <span className="font-semibold text-foreground">{results.length}</span>
             </span>
             <span className="text-muted-foreground font-medium">
-              Đã xử lý thành công:{" "}
+              Successfully processed: {" "}
               <span className="font-semibold text-primary">
                 {results.filter((r) => !r.isLoading && !r.error && r.extractedIngredients.length > 0).length}
               </span>

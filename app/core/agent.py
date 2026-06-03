@@ -30,14 +30,14 @@ class AgentManager:
         if not os.path.exists(graphml_file):
             raise FileNotFoundError(f"GraphML file '{graphml_file}' not found")
 
-        if not settings.OPENAI_API_KEY:
-            raise ValueError("OPENAI_API_KEY not found in environment variables")
+        if not settings.GEMINI_API_KEY:
+            raise ValueError("GEMINI_API_KEY not found in environment variables")
 
         print("🚀 Starting Drug Interaction Agent API (LangGraph)...")
         self.agent = create_agent(
             data_filepath=graphml_file,
-            openai_api_key=settings.OPENAI_API_KEY,
-            model_name=settings.OPENAI_MODEL,
+            gemini_api_key=settings.GEMINI_API_KEY,
+            model_name=settings.GEMINI_MODEL,
             verbose=settings.AGENT_VERBOSE,
         )
         print("✅ LangGraph Agent loaded and ready!")
@@ -71,8 +71,8 @@ class AgentManager:
         if session_id not in self.sessions:
             self.sessions[session_id] = DrugInteractionAgent(
                 graph=self.agent.graph,  # Share the same graph
-                openai_api_key=settings.OPENAI_API_KEY,
-                model_name=settings.OPENAI_MODEL,
+                gemini_api_key=settings.GEMINI_API_KEY,
+                model_name=settings.GEMINI_MODEL,
                 verbose=settings.AGENT_VERBOSE,
                 thread_id=session_id,  # Use session_id as thread_id for memory
             )
@@ -133,16 +133,15 @@ class AgentManager:
             MedicalSpecialistAgent instance
         """
         if self.medical_specialist is None:
-            # Use gpt-4o-search-preview for medical specialist (built-in search capabilities)
             # Can be configured via environment variable if needed
             medical_model = os.getenv(
-                "MEDICAL_SPECIALIST_MODEL", "gpt-4o-search-preview"
+                "MEDICAL_SPECIALIST_MODEL", settings.GEMINI_MODEL
             )
             self.medical_specialist = create_medical_specialist_agent(
                 model_name=medical_model,
                 temperature=0.3,  # Balanced for medical accuracy
                 verbose=settings.AGENT_VERBOSE,
-                openai_api_key=settings.OPENAI_API_KEY,
+                gemini_api_key=settings.GEMINI_API_KEY,
             )
         return self.medical_specialist
 

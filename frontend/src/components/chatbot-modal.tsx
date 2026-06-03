@@ -16,8 +16,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const ChatbotModal = () => {
-  const { messages, addMessage, updateMessage, clientId } = useChatStore();
-  const { isChatbotOpen, closeChatbot } = useGlobalStore();
+  const { messages, addMessage, updateMessage } = useChatStore();
+  const { isChatbotOpen, closeChatbot, interactionContext } = useGlobalStore();
+  const [isMobile, setIsMobile] = useState<boolean>(typeof window !== "undefined" ? window.innerWidth < 768 : true);
 
   const [inputValue, setInputValue] = useState("");
   const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== "undefined" ? navigator.onLine : true);
@@ -48,11 +49,18 @@ const ChatbotModal = () => {
     };
   }, []);
 
+  // Track viewport size to only show Drawer on small screens
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const simulateTyping = useCallback((messageId: string, content: string) => {
     let currentIndex = 0;
     setStreamingTextMap((messages) => ({ ...messages, [messageId]: "" }));
     const typeInterval = setInterval(() => {
-      currentIndex += Math.random() > 0.1 ? 1 : 0;
+      currentIndex += Math.random() > 0.2 ? 4 : 3;
       const nextIndex = Math.min(currentIndex, content.length);
       setStreamingTextMap((messages) => ({
         ...messages,
@@ -69,13 +77,13 @@ const ChatbotModal = () => {
         setIsTyping(false);
         setStreamingMessageId(null);
       }
-    }, 50);
+    }, 20);
     return () => clearInterval(typeInterval);
   }, []);
 
   const sendMessage = useCallback(
     async (text: string) => {
-      if (!clientId || !text.trim() || isTyping || !isOnline) return;
+      if (!text.trim() || isTyping || !isOnline) return;
 
       const userMessage: ChatMessageItem = {
         id: nanoid(),
@@ -95,13 +103,10 @@ const ChatbotModal = () => {
       setIsTyping(true);
 
       try {
-        // const result = await askMutation.mutateAsync({
-        //   user_query: userMessage.content,
-        //   voice_code: "en",
-        // });
-        // const content = result?.data?.assistant_reply?.content || "";
-        // updateMessage(assistantMessageId, { content });
-        // simulateTyping(assistantMessageId, content);
+        const result = await import("@/lib/api").then(({ drugInteractionAPI }) => drugInteractionAPI.chat(text.trim()));
+
+        updateMessage(assistantMessageId, { content: result.answer });
+        simulateTyping(assistantMessageId, result.answer);
       } catch {
         const assistantMessageError: ChatMessageItem = {
           id: assistantMessageId,
@@ -113,7 +118,7 @@ const ChatbotModal = () => {
         setStreamingMessageId(null);
       }
     },
-    [addMessage, clientId, isTyping, simulateTyping, updateMessage, isOnline]
+    [addMessage, isTyping, simulateTyping, updateMessage, isOnline]
   );
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback(
@@ -127,74 +132,84 @@ const ChatbotModal = () => {
     [inputValue, sendMessage]
   );
 
+  if (!isMobile) return null;
+
   return (
     <Drawer open={isChatbotOpen} onOpenChange={(v) => (!v ? closeChatbot() : null)}>
-      <DrawerContent aria-describedby={undefined} className="!z-200 !mt-0 h-[100dvh] !max-h-[100dvh] w-screen !rounded-none border-0 p-0 lg:max-w-lg">
+      <DrawerContent aria-describedby={undefined} className="!z-200 !mt-0 h-[100dvh] !max-h-[100dvh] w-screen !rounded-none border-0 p-0">
         <DrawerClose asChild className="absolute top-4 right-4">
           <Button variant="ghost" size="icon">
             <X />
           </Button>
         </DrawerClose>
         <DrawerTitle className="sr-only">DDI Bot</DrawerTitle>
-        <div className="bg-background flex h-full w-full flex-col overflow-hidden border shadow-sm">
-          {/* Header */}
-          <div className="bg-muted/50 flex items-center justify-between border-b px-5 py-4">
-            <div className="flex items-center gap-3">
-              <Avatar className="size-9">
-                <AvatarImage loading="eager" src="bot.svg" alt="DDI Bot" />
-                <AvatarFallback>MB</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col">
-                <span className="text-lg leading-none font-semibold">DDI Bot</span>
-                <span className={`flex items-center gap-1 text-sm ${isOnline ? "text-green-600" : "text-red-600"}`}>
-                  <span className={`inline-block h-2.5 w-2.5 rounded-full ${isOnline ? "bg-green-500" : "bg-red-500"}`} />
-                  {isOnline ? "Online" : "Offline"}
-                </span>
+        {/* Inner wrapper: full width on mobile, constrained and right-aligned on md+ */}
+        <div className="w-full md:max-w-[520px] md:ml-auto md:mr-6 md:my-6 md:rounded-lg md:overflow-hidden">
+          <div className="bg-background flex h-full w-full flex-col overflow-hidden border shadow-sm">
+            {/* Header */}
+            <div className="bg-muted/50 flex items-center justify-between border-b px-5 py-4">
+              <div className="flex items-center gap-3">
+                <Avatar className="size-9">
+                  <AvatarImage loading="eager" src="/bot.svg" alt="DDI Bot" />
+                  <AvatarFallback>MB</AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col">
+                  <span className="text-lg leading-none font-semibold">DDI Bot</span>
+                  <span className={`flex items-center gap-1 text-sm ${isOnline ? "text-green-600" : "text-red-600"}`}>
+                    <span className={`inline-block h-2.5 w-2.5 rounded-full ${isOnline ? "bg-green-500" : "bg-red-500"}`} />
+                    {isOnline ? "Online" : "Offline"}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-          {/* Conversation Area */}
-          <Conversation className="flex-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <ConversationContent>
-              {messages.map((message, index) => (
-                <div key={message.id} className={cn(index === messages.length - 1 && (!isTyping ? "mb-34" : "mb-22"))}>
-                  <Message from={message.role}>
-                    <MessageContent>
-                      {message.role === "assistant" && streamingMessageId === message.id && false ? (
-                        <div className="flex items-center gap-2">
-                          <Loader size={14} />
-                          <span className="text-sm text-gray-800">Thinking...</span>
-                        </div>
-                      ) : (
-                        streamingTextMap[message.id] ?? message.content
-                      )}
-                    </MessageContent>
-                    {message.role === "assistant" && <MessageAvatar src="assets/images/bot.svg" name="AI" />}
-                  </Message>
-                </div>
-              ))}
-            </ConversationContent>
-            <ConversationScrollButton isTyping={isTyping} className="bottom-40 z-[200]" />
-          </Conversation>
-          <div className="absolute right-0 bottom-0 left-0 flex flex-col gap-2">
-            {/* Input Area */}
-            <div className="flex-shrink-0 border-t bg-white p-4">
-              <PromptInput onSubmit={handleSubmit} className="flex">
-                <PromptInputTextarea
-                  value={inputValue}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInputValue(e.target.value)}
-                  placeholder="Write your message"
-                  disabled={isTyping}
-                  onPointerDown={(e: React.PointerEvent<HTMLTextAreaElement>) => e.stopPropagation()}
-                />
-                <PromptInputToolbar>
-                  <PromptInputSubmit
-                    disabled={!inputValue.trim() || isTyping || !isOnline}
-                    status={isTyping ? "streaming" : "ready"}
-                    variant="secondary"
+            {interactionContext.length > 0 && (
+              <div className="border-b bg-muted/40 px-5 py-3 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Current ingredients:</span> {interactionContext.join(", ")}
+              </div>
+            )}
+            {/* Conversation Area */}
+            <Conversation className="flex-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <ConversationContent>
+                {messages.map((message, index) => (
+                  <div key={message.id} className={cn(index === messages.length - 1 && (!isTyping ? "mb-34" : "mb-22"))}>
+                    <Message from={message.role}>
+                      <MessageContent>
+                        {message.role === "assistant" && streamingMessageId === message.id && false ? (
+                          <div className="flex items-center gap-2">
+                            <Loader size={14} />
+                            <span className="text-sm text-gray-800">Thinking...</span>
+                          </div>
+                        ) : (
+                          streamingTextMap[message.id] ?? message.content
+                        )}
+                      </MessageContent>
+                      {message.role === "assistant" && <MessageAvatar src="/bot.svg" name="DDI Bot" />}
+                    </Message>
+                  </div>
+                ))}
+              </ConversationContent>
+              <ConversationScrollButton isTyping={isTyping} className="bottom-40 z-[200]" />
+            </Conversation>
+            <div className="absolute right-0 bottom-0 left-0 flex flex-col gap-2">
+              {/* Input Area */}
+              <div className="flex-shrink-0 border-t bg-white p-4">
+                <PromptInput onSubmit={handleSubmit} className="flex">
+                  <PromptInputTextarea
+                    value={inputValue}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInputValue(e.target.value)}
+                    placeholder="Write your message"
+                    disabled={isTyping}
+                    onPointerDown={(e: React.PointerEvent<HTMLTextAreaElement>) => e.stopPropagation()}
                   />
-                </PromptInputToolbar>
-              </PromptInput>
+                  <PromptInputToolbar>
+                    <PromptInputSubmit
+                      disabled={!inputValue.trim() || isTyping || !isOnline}
+                      status={isTyping ? "streaming" : "ready"}
+                      variant="secondary"
+                    />
+                  </PromptInputToolbar>
+                </PromptInput>
+              </div>
             </div>
           </div>
         </div>

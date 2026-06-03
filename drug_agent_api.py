@@ -37,13 +37,14 @@ async def lifespan(app: FastAPI):
     if not os.path.exists(data_file):
         raise FileNotFoundError(f"Data file '{data_file}' not found")
 
-    if not os.getenv("OPENAI_API_KEY"):
-        raise ValueError("OPENAI_API_KEY not found in environment variables")
+    if not os.getenv("GEMINI_API_KEY"):
+        raise ValueError("GEMINI_API_KEY not found in environment variables")
 
     print("🚀 Starting Drug Interaction Agent API...")
     agent = create_agent(
         data_filepath=data_file,
-        model_name=os.getenv("OPENAI_MODEL", "gpt-5-mini-2025-08-07"),
+        gemini_api_key=os.getenv("GEMINI_API_KEY"),
+        model_name=os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite"),
         verbose=False,
     )
     print("✅ Agent loaded and ready!")
@@ -262,8 +263,8 @@ async def chat_with_session(request: ChatRequest):
 
             sessions[session_id] = DrugInteractionAgent(
                 graph=agent.graph,  # Share the same graph
-                openai_api_key=os.getenv("OPENAI_API_KEY"),
-                model_name=os.getenv("OPENAI_MODEL", "gpt-5-mini-2025-08-07"),
+                gemini_api_key=os.getenv("GEMINI_API_KEY"),
+                model_name=os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite"),
                 verbose=False,
             )
 
