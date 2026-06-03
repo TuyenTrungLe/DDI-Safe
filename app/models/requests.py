@@ -1,0 +1,119 @@
+"""Request models for API endpoints."""
+
+from typing import Any, Optional
+from pydantic import BaseModel, Field
+
+
+class QueryRequest(BaseModel):
+    """Request model for simple query."""
+
+    question: str = Field(
+        ...,
+        description="Natural language question about drug interactions",
+        min_length=1,
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {"question": "What are the interactions between Warfarin and Aspirin?"}
+            ]
+        }
+    }
+
+
+class ChatRequest(BaseModel):
+    """Request model for chat with session."""
+
+    question: str = Field(
+        ...,
+        description="Natural language question about drug interactions",
+        min_length=1,
+    )
+    session_id: Optional[str] = Field(
+        None, description="Session ID for conversation continuity"
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "question": "Show me all interactions for Metformin",
+                    "session_id": "optional-session-id",
+                }
+            ]
+        }
+    }
+
+
+class DrugNamesFromImageRequest(BaseModel):
+    """Request model for extracting drug names from image."""
+
+    image_url: str = Field(
+        ...,
+        description="URL or base64-encoded image of the drug packaging/label",
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {"image_url": "https://example.com/drug-package.jpg"},
+                {"image_url": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."},
+            ]
+        }
+    }
+
+
+class AddDrugRequest(BaseModel):
+    """Request model for adding a drug to medicine cabinet."""
+
+    drug_name: str = Field(
+        ...,
+        description="Name of the drug or active ingredient to add",
+        min_length=1,
+    )
+    user_id: Optional[str] = Field(
+        default="admin",
+        description="User identifier (defaults to 'admin' for mock)",
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {"drug_name": "Aspirin", "user_id": "admin"},
+                {"drug_name": "Warfarin"},
+            ]
+        }
+    }
+
+
+class SaveInteractionCheckRequest(BaseModel):
+    """Request model for saving a complete interaction check event."""
+
+    user_id: Optional[str] = Field(
+        default="admin",
+        description="User identifier (defaults to 'admin' for mock)",
+    )
+    checked_drugs: list[str] = Field(
+        ...,
+        description="Drug names included in the interaction check",
+        min_length=1,
+    )
+    result: Any = Field(..., description="Interaction check response payload")
+    source: Optional[str] = Field(
+        default="interaction_check",
+        description="Where the check came from, such as interaction_check or background_check",
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "user_id": "admin",
+                    "checked_drugs": ["Aspirin", "Warfarin"],
+                    "result": {"answer": "...", "parsed_result": {"interactions": []}},
+                    "source": "interaction_check",
+                }
+            ]
+        }
+    }
