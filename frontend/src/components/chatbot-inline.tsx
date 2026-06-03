@@ -42,8 +42,7 @@ const ChatbotInline = () => {
     let currentIndex = 0;
     setStreamingTextMap((messages) => ({ ...messages, [messageId]: "" }));
     const typeInterval = setInterval(() => {
-      // Tăng tốc độ hiển thị: cộng 3-5 ký tự mỗi frame thay vì 1
-      currentIndex += Math.random() > 0.2 ? 4 : 3;
+      currentIndex += Math.random() > 0.1 ? 1 : 0;
       const nextIndex = Math.min(currentIndex, content.length);
       setStreamingTextMap((messages) => ({
         ...messages,
@@ -60,7 +59,7 @@ const ChatbotInline = () => {
         setIsTyping(false);
         setStreamingMessageId(null);
       }
-    }, 20);
+    }, 50);
     return () => clearInterval(typeInterval);
   }, []);
 
@@ -86,8 +85,9 @@ const ChatbotInline = () => {
       setIsTyping(true);
 
       try {
+        // Hardcode session_id as "optional-session-id" for now
         setIsLoading(true);
-        const result = await drugInteractionAPI.chat(text.trim());
+        const result = await drugInteractionAPI.chat(text.trim(), "optional-session-id");
 
         // Update message with answer
         updateMessage(assistantMessageId, { content: result.answer });
@@ -95,8 +95,8 @@ const ChatbotInline = () => {
       } catch (error) {
         console.error("Chat API error:", error);
         const errorMessage = !isOnline
-          ? "You are offline. Please check your network connection and try again."
-          : "Sorry, an error occurred while calling the chatbot. Please try again later.";
+          ? "Bạn đang offline. Vui lòng kiểm tra kết nối mạng và thử lại."
+          : "Xin lỗi, có lỗi xảy ra khi gọi chatbot. Vui lòng thử lại sau.";
 
         updateMessage(assistantMessageId, { content: errorMessage });
         setIsTyping(false);
@@ -129,7 +129,7 @@ const ChatbotInline = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Avatar className="size-9">
-              <AvatarImage loading="eager" src="/bot.svg" alt="DDI Bot" />
+              <AvatarImage loading="eager" src="bot.svg" alt="DDI Bot" />
               <AvatarFallback>MB</AvatarFallback>
             </Avatar>
             <div className="flex flex-col">
@@ -146,17 +146,17 @@ const ChatbotInline = () => {
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="flex flex-col h-[200px] md:h-[600px]">
+        <div className="flex flex-col h-[400px]">
           {/* Conversation Area */}
           <Conversation className="flex-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <ConversationContent className="p-4">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                   <Avatar className="size-12 mb-4">
-                    <AvatarImage loading="eager" src="/bot.svg" alt="DDI Bot" />
+                    <AvatarImage loading="eager" src="bot.svg" alt="DDI Bot" />
                     <AvatarFallback>MB</AvatarFallback>
                   </Avatar>
-                  <p className="text-sm">Hello! I&apos;m DDI Bot. Ask me about drug interaction analysis results.</p>
+                  <p className="text-sm">Xin chào! Tôi là DDI Bot. Hãy hỏi tôi về kết quả phân tích tương tác thuốc.</p>
                 </div>
               ) : (
                 messages.map((message, index) => (
@@ -166,13 +166,13 @@ const ChatbotInline = () => {
                         {message.role === "assistant" && streamingMessageId === message.id && isLoading ? (
                           <div className="flex items-center gap-2">
                             <Loader size={14} />
-                            <span className="text-sm text-muted-foreground">Thinking...</span>
+                            <span className="text-sm text-muted-foreground">Đang suy nghĩ...</span>
                           </div>
                         ) : (
                           streamingTextMap[message.id] ?? message.content
                         )}
                       </MessageContent>
-                      {message.role === "assistant" && <MessageAvatar src="/bot.svg" name="DDI Bot" />}
+                      {message.role === "assistant" && <MessageAvatar src="bot.svg" name="AI" />}
                     </Message>
                   </div>
                 ))
@@ -186,7 +186,7 @@ const ChatbotInline = () => {
               <PromptInputTextarea
                 value={inputValue}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInputValue(e.target.value)}
-                placeholder="Ask your question..."
+                placeholder="Nhập câu hỏi của bạn..."
                 disabled={isTyping}
                 onPointerDown={(e: React.PointerEvent<HTMLTextAreaElement>) => e.stopPropagation()}
               />

@@ -185,14 +185,9 @@ async def extract_drug_names_from_image(request: DrugNamesFromImageRequest):
 
         # Extract drug names from the image
         result = agent.extract_drug_names_from_image(request.image_url)
-        meta = agent.get_last_extraction_meta()
 
         return DrugNamesFromImageResponse(
-            result=result,
-            timestamp=datetime.utcnow().isoformat(),
-            processing_source=meta.get("processing_source"),
-            ocr_confidence=meta.get("ocr_confidence"),
-            ocr_has_keywords=meta.get("ocr_has_keywords"),
+            result=result, timestamp=datetime.utcnow().isoformat()
         )
 
     except Exception as e:
@@ -262,14 +257,9 @@ async def extract_drug_names_from_upload(
 
         # Extract drug names from the image
         result = agent.extract_drug_names_from_image(image_url)
-        meta = agent.get_last_extraction_meta()
 
         return DrugNamesFromImageResponse(
-            result=result,
-            timestamp=datetime.utcnow().isoformat(),
-            processing_source=meta.get("processing_source"),
-            ocr_confidence=meta.get("ocr_confidence"),
-            ocr_has_keywords=meta.get("ocr_has_keywords"),
+            result=result, timestamp=datetime.utcnow().isoformat()
         )
 
     except HTTPException:

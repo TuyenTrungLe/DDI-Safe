@@ -1,6 +1,6 @@
 """Request models for API endpoints."""
 
-from typing import Any, Optional
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -82,38 +82,6 @@ class AddDrugRequest(BaseModel):
             "examples": [
                 {"drug_name": "Aspirin", "user_id": "admin"},
                 {"drug_name": "Warfarin"},
-            ]
-        }
-    }
-
-
-class SaveInteractionCheckRequest(BaseModel):
-    """Request model for saving a complete interaction check event."""
-
-    user_id: Optional[str] = Field(
-        default="admin",
-        description="User identifier (defaults to 'admin' for mock)",
-    )
-    checked_drugs: list[str] = Field(
-        ...,
-        description="Drug names included in the interaction check",
-        min_length=1,
-    )
-    result: Any = Field(..., description="Interaction check response payload")
-    source: Optional[str] = Field(
-        default="interaction_check",
-        description="Where the check came from, such as interaction_check or background_check",
-    )
-
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "user_id": "admin",
-                    "checked_drugs": ["Aspirin", "Warfarin"],
-                    "result": {"answer": "...", "parsed_result": {"interactions": []}},
-                    "source": "interaction_check",
-                }
             ]
         }
     }

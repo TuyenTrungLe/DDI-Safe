@@ -15,33 +15,6 @@ from .graph import DrugInteractionGraph as DrugAgentGraph
 logger = logging.getLogger(__name__)
 
 
-def _normalize_response_text(content) -> str:
-    """Convert Gemini/LangGraph response content into a plain string."""
-    if isinstance(content, str):
-        return content
-
-    if isinstance(content, list):
-        parts: List[str] = []
-        for item in content:
-            if isinstance(item, str):
-                parts.append(item)
-            elif isinstance(item, dict):
-                text = item.get("text")
-                if isinstance(text, str) and text.strip():
-                    parts.append(text)
-                elif isinstance(item.get("content"), str):
-                    parts.append(item["content"])
-        return "\n".join(part for part in parts if part).strip()
-
-    if isinstance(content, dict):
-        for key in ("text", "content", "answer", "response"):
-            value = content.get(key)
-            if isinstance(value, str) and value.strip():
-                return value
-
-    return str(content)
-
-
 class DrugInteractionAgent:
     """
     LangGraph-based conversational agent for drug interaction queries.
@@ -53,8 +26,8 @@ class DrugInteractionAgent:
     def __init__(
         self,
         graph: DrugInteractionGraph,
-        gemini_api_key: Optional[str] = None,
-        model_name: str = "gemini-3.1-flash-lite",
+        openai_api_key: Optional[str] = None,
+        model_name: str = "gpt-4o-mini",
         temperature: float = 0.0,
         verbose: bool = False,
         thread_id: str = "default",
@@ -66,8 +39,8 @@ class DrugInteractionAgent:
 
         Args:
             graph: DrugInteractionGraph instance with loaded data
-            gemini_api_key: Gemini API key (defaults to env var GEMINI_API_KEY)
-            model_name: Gemini model to use
+            openai_api_key: OpenAI API key (defaults to env var OPENAI_API_KEY)
+            model_name: OpenAI model to use
             temperature: Model temperature (0.0 for deterministic)
             verbose: Whether to print agent reasoning steps
             thread_id: Thread ID for conversation memory
@@ -101,15 +74,15 @@ class DrugInteractionAgent:
                 self.enable_drug_mapping = False
 
         # Validate API key
-        api_key = gemini_api_key or os.getenv("GEMINI_API_KEY")
+        api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError(
-                "Gemini API key not found. Set GEMINI_API_KEY environment variable "
-                "or pass gemini_api_key parameter."
+                "OpenAI API key not found. Set OPENAI_API_KEY environment variable "
+                "or pass openai_api_key parameter."
             )
 
         # Set the API key in environment for LangChain
-        os.environ["GEMINI_API_KEY"] = api_key
+        os.environ["OPENAI_API_KEY"] = api_key
 
         # Initialize the LangGraph workflow
         self.agent_graph = DrugAgentGraph(
@@ -137,9 +110,8 @@ class DrugInteractionAgent:
             result = self.agent_graph.invoke_with_translation(
                 question, thread_id=self.thread_id
             )
-            response_text = _normalize_response_text(result.get("english", result.get("vietnamese", "")))
             return {
-                "response": response_text,
+                "response": result.get("vietnamese", result.get("english", "")),
                 "drug_links": result.get("drug_links", {}),
                 "drug_conversions": result.get("drug_conversions", {}),
                 "parsed_result": result.get("parsed_result"),
@@ -342,8 +314,8 @@ class DrugInteractionAgent:
 
 def create_agent(
     data_filepath: str,
-    gemini_api_key: Optional[str] = None,
-    model_name: str = "gemini-3.1-flash-lite",
+    openai_api_key: Optional[str] = None,
+    model_name: str = "gpt-4o-mini",
     verbose: bool = False,
     enable_drug_mapping: bool = True,
     drug_mapping_threshold: float = 0.7,
@@ -353,8 +325,8 @@ def create_agent(
 
     Args:
         data_filepath: Path to GraphML file with drug interactions
-        gemini_api_key: Gemini API key (defaults to env var)
-        model_name: Gemini model to use
+        openai_api_key: OpenAI API key (defaults to env var)
+        model_name: OpenAI model to use (gpt-4o-mini, gpt-4o, o3-mini, etc.)
         verbose: Whether to print agent reasoning
         enable_drug_mapping: Whether to enable drug name mapping
         drug_mapping_threshold: Similarity threshold for drug name mapping
@@ -371,7 +343,7 @@ def create_agent(
     # Create agent
     agent = DrugInteractionAgent(
         graph=graph,
-        gemini_api_key=gemini_api_key,
+        openai_api_key=openai_api_key,
         model_name=model_name,
         verbose=verbose,
         enable_drug_mapping=enable_drug_mapping,
@@ -393,7 +365,7 @@ if __name__ == "__main__":
     # Create agent
     agent = create_agent(
         data_filepath="drug_interactions.graphml",
-        model_name="gemini-3.1-flash-lite",
+        model_name="gpt-4o-mini",
         verbose=True,
     )
 

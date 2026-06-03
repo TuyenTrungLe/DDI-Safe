@@ -57,11 +57,11 @@ def test_configuration():
         from app.core.config import settings
 
         assert hasattr(settings, "API_TITLE")
-        assert hasattr(settings, "GEMINI_MODEL")
+        assert hasattr(settings, "OPENAI_MODEL")
         assert hasattr(settings, "DATA_FILE")
 
         print(f"  ✓ API Title: {settings.API_TITLE}")
-        print(f"  ✓ Gemini Model: {settings.GEMINI_MODEL}")
+        print(f"  ✓ OpenAI Model: {settings.OPENAI_MODEL}")
         print(f"  ✓ Data File: {settings.DATA_FILE}")
 
         return True
@@ -185,7 +185,7 @@ def main():
         print("\n🎉 All tests passed! The refactored structure is working correctly.")
         print("\nNext steps:")
         print("  1. Install dependencies: pip install -r requirements.txt")
-        print("  2. Set up .env file with GEMINI_API_KEY")
+        print("  2. Set up .env file with OPENAI_API_KEY")
         print("  3. Run the app: python -m app.main")
         return 0
     else:

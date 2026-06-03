@@ -22,9 +22,9 @@ class Settings(BaseSettings):
     API_PORT: int = 8000
     API_RELOAD: bool = True
 
-    # Gemini Configuration
-    GEMINI_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemini-3.1-flash-lite"
+    # OpenAI Configuration
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_MODEL: str = "gpt-5-mini-2025-08-07"
 
     # Cloudinary Configuration
     CLOUDINARY_CLOUD_NAME: Optional[str] = None
@@ -55,8 +55,8 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
 
         # Override with environment variables
-        self.GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", self.GEMINI_API_KEY)
-        self.GEMINI_MODEL = os.getenv("GEMINI_MODEL", self.GEMINI_MODEL)
+        self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", self.OPENAI_API_KEY)
+        self.OPENAI_MODEL = os.getenv("OPENAI_MODEL", self.OPENAI_MODEL)
         self.CLOUDINARY_CLOUD_NAME = os.getenv(
             "CLOUDINARY_CLOUD_NAME", self.CLOUDINARY_CLOUD_NAME
         )

@@ -20,7 +20,7 @@ class DrugConversion(BaseModel):
 class DrugInteraction(BaseModel):
     drug1: str
     drug2: str
-    status: str  # "Safe", "Has Interaction"
+    status: str  # "An Toàn", "Có Tương Tác"
     details: str
     reference1: Optional[DrugReference]
     reference2: Optional[DrugReference]

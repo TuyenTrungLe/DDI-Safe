@@ -15,37 +15,7 @@ export interface DrugInteraction {
 
 export interface QueryResponse {
   answer: string;
-  timestamp?: string;
-  drug_links?: Record<string, string>;
-  parsed_result?: {
-    drug_conversion?: Array<{
-      original: string;
-      converted: string;
-      reference?: {
-        name: string;
-        link: string;
-      };
-    }>;
-    interactions?: Array<{
-      drug1: string;
-      drug2: string;
-      status: string;
-      details: string;
-      reference1?: {
-        name: string;
-        link: string;
-      };
-      reference2?: {
-        name: string;
-        link: string;
-      };
-    }>;
-    summary?: {
-      overall_risk?: string;
-      major_interactions?: string[];
-      recommendations?: string[];
-    };
-  };
+  timestamp: string;
 }
 
 export interface StatsResponse {
@@ -80,18 +50,6 @@ export interface AddDrugResponse {
   message: string;
 }
 
-export interface MedicineCabinetStats {
-  total_saved_drugs: number;
-  total_checks: number;
-  total_interaction_alerts: number;
-  high_risk_checks: number;
-  last_checked_at?: string | null;
-  most_checked_drugs: Array<{
-    drug_name: string;
-    count: number;
-  }>;
-}
-
 export interface DrugInCabinet {
   drug_name: string;
   interactions: string;
@@ -101,7 +59,6 @@ export interface MedicineCabinetListResponse {
   user_id: string;
   drugs: DrugInCabinet[];
   count: number;
-  stats?: MedicineCabinetStats;
   timestamp: string;
 }
 
@@ -114,45 +71,6 @@ export interface DrugInteractionsResponse {
   drug_name: string;
   user_id: string;
   interactions: DrugInteraction[];
-}
-
-export interface InteractionPairRecord {
-  drug1: string;
-  drug2: string;
-  status: string;
-  details: string;
-  has_interaction: boolean;
-  severity: string;
-}
-
-export interface InteractionCheckRecordResponse {
-  id: string;
-  user_id: string;
-  checked_drugs: string[];
-  result_summary?: string | null;
-  overall_risk: string;
-  total_pairs: number;
-  interactions_found: number;
-  interaction_pairs: InteractionPairRecord[];
-  result?: unknown;
-  source: string;
-  checked_at: string;
-}
-
-export interface SaveInteractionCheckResponse {
-  success: boolean;
-  message: string;
-  record: InteractionCheckRecordResponse;
-  stats: MedicineCabinetStats;
-  timestamp: string;
-}
-
-export interface InteractionCheckHistoryResponse {
-  user_id: string;
-  history: InteractionCheckRecordResponse[];
-  stats: MedicineCabinetStats;
-  count: number;
-  timestamp: string;
 }
 
 export const drugInteractionAPI = {
@@ -196,10 +114,6 @@ export const drugInteractionAPI = {
     return response.data;
   },
 
-  clearChatSession: async (sessionId = "hackathon"): Promise<void> => {
-    await api.delete(`/chat/${sessionId}`);
-  },
-
   // Medicine Cabinet APIs
   addDrugToCabinet: async (drugName: string, userId: string): Promise<AddDrugResponse> => {
     const response = await api.post<AddDrugResponse>("/medicine-cabinet/add", {
@@ -232,35 +146,6 @@ export const drugInteractionAPI = {
 
   clearMedicineCabinet: async (userId: string): Promise<string> => {
     const response = await api.delete<string>("/medicine-cabinet/clear", {
-      params: { user_id: userId },
-    });
-    return response.data;
-  },
-
-  saveInteractionCheckHistory: async (
-    userId: string,
-    checkedDrugs: string[],
-    result: unknown,
-    source = "interaction_check"
-  ): Promise<SaveInteractionCheckResponse> => {
-    const response = await api.post<SaveInteractionCheckResponse>("/medicine-cabinet/check-history", {
-      user_id: userId,
-      checked_drugs: checkedDrugs,
-      result,
-      source,
-    });
-    return response.data;
-  },
-
-  getInteractionCheckHistory: async (userId: string, limit = 20): Promise<InteractionCheckHistoryResponse> => {
-    const response = await api.get<InteractionCheckHistoryResponse>("/medicine-cabinet/check-history", {
-      params: { user_id: userId, limit },
-    });
-    return response.data;
-  },
-
-  clearInteractionCheckHistory: async (userId: string): Promise<string> => {
-    const response = await api.delete<string>("/medicine-cabinet/check-history", {
       params: { user_id: userId },
     });
     return response.data;

@@ -44,9 +44,9 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Sign In</DialogTitle>
+          <DialogTitle>Đăng Nhập</DialogTitle>
           <DialogDescription>
-            Sign in to manage your personal patient profile
+            Đăng nhập để quản lý hồ sơ bệnh nhân cá nhân của bạn
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -64,7 +64,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Mật khẩu</Label>
               <Input
                 id="password"
                 type="password"
@@ -78,7 +78,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
           </div>
           <DialogFooter>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? "Đang đăng nhập..." : "Đăng Nhập"}
             </Button>
           </DialogFooter>
         </form>

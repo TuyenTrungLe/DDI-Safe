@@ -22,13 +22,13 @@ export function DrugList({ drugs, onRemoveDrug, onSaveToCabinet, showSaveButton 
       try {
         const newCount = await onSaveToCabinet(drugs);
         if (newCount > 0) {
-          toast.success(`Saved ${newCount} new drug ingredients to your Personal Medicine Cabinet.`);
+          toast.success(`Đã lưu ${newCount} thành phần thuốc mới vào Tủ Thuốc Cá Nhân!`);
         } else {
-          toast.info("All of these drugs are already in your Personal Medicine Cabinet.");
+          toast.info("Tất cả thuốc này đã có trong Tủ Thuốc Cá Nhân của bạn.");
         }
       } catch (error) {
         console.error("Error saving to cabinet:", error);
-        toast.error("An error occurred while saving to the medicine cabinet.");
+        toast.error("Có lỗi xảy ra khi lưu vào tủ thuốc");
       }
     }
   };
@@ -37,11 +37,11 @@ export function DrugList({ drugs, onRemoveDrug, onSaveToCabinet, showSaveButton 
     <Card className="border-2 shadow-lg mt-4">
       <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xl font-bold">Detected Active Ingredients</CardTitle>
+          <CardTitle className="text-xl font-bold">Thành Phần Hoạt Chất Đã Phát Hiện</CardTitle>
           {showSaveButton && onSaveToCabinet && (
             <Button variant="outline" size="sm" onClick={handleSaveToCabinet} className="gap-2">
               <Save className="h-4 w-4" />
-              Save to Medicine Cabinet
+              Lưu vào Tủ Thuốc
             </Button>
           )}
         </div>
@@ -67,7 +67,7 @@ export function DrugList({ drugs, onRemoveDrug, onSaveToCabinet, showSaveButton 
           ))}
         </div>
         <p className="text-sm text-muted-foreground mt-4 font-medium">
-          Detected <span className="font-semibold text-primary">{drugs.length}</span> ingredients. Remove any incorrect ones.
+          Đã phát hiện <span className="font-semibold text-primary">{drugs.length}</span> hoạt chất. Xóa những hoạt chất không chính xác.
         </p>
       </CardContent>
     </Card>

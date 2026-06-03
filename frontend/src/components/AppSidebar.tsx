@@ -22,12 +22,12 @@ export function AppSidebar({ currentPage, onPageChange }: AppSidebarProps) {
 
   const menuItems = [
     {
-      title: "Interaction Check",
+      title: "Kiểm Tra Tương Tác",
       icon: Pill,
       page: "interaction" as const,
     },
     {
-      title: "Personal Medicine Cabinet",
+      title: "Tủ Thuốc Cá Nhân",
       icon: User,
       page: "profile" as const,
     },

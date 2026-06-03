@@ -23,7 +23,7 @@ def test_translation():
     # Create the LangGraph workflow
     graph = DrugInteractionGraph(
         graph=drug_graph,
-        model_name="gemini-3.1-flash-lite",
+        model_name="gpt-4o-mini",
         verbose=True,
         enable_drug_mapping=True,
     )

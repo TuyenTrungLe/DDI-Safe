@@ -58,7 +58,7 @@ def test_agent_creation():
         # Create agent with minimal settings
         print("  Creating agent...")
         agent = create_agent(
-            data_filepath=graphml_file, model_name="gemini-3.1-flash-lite", verbose=False
+            data_filepath=graphml_file, model_name="gpt-4o-mini", verbose=False
         )
 
         print("  ✓ Agent created successfully")

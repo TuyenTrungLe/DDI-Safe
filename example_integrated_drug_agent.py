@@ -38,7 +38,7 @@ def test_drug_agent_with_mapping():
         print("\nCreating agent with drug mapping enabled...")
         agent = create_agent(
             data_filepath=data_file,
-            model_name="gemini-3.1-flash-lite",
+            model_name="gpt-4o-mini",
             verbose=True,
             enable_drug_mapping=True,
             drug_mapping_threshold=0.7,
@@ -140,7 +140,7 @@ def test_agent_without_mapping():
         # Create agent without drug mapping
         agent = create_agent(
             data_filepath="drug_interactions.graphml",
-            model_name="gemini-3.1-flash-lite",
+            model_name="gpt-4o-mini",
             verbose=False,
             enable_drug_mapping=False,
         )

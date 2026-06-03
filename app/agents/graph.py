@@ -3,10 +3,10 @@ LangGraph workflow definition for Drug Interaction Agent.
 
 Defines the graph structure and node functions for the agent.
 """
-import os
+
 import re
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
@@ -16,7 +16,6 @@ from .tools import DrugInteractionTools
 from .enhanced_tools import EnhancedDrugInteractionTools
 from .models import DrugInteractionResult
 from drug_interaction_graph import DrugInteractionGraph
-from ..core.config import settings
 
 
 class DrugInteractionGraph:
@@ -29,7 +28,7 @@ class DrugInteractionGraph:
     def __init__(
         self,
         graph: DrugInteractionGraph,
-        model_name: str = "gemini-3.1-flash-lite",
+        model_name: str = "gpt-4o-mini",
         temperature: float = 0.0,
         verbose: bool = False,
         enable_drug_mapping: bool = True,
@@ -39,7 +38,7 @@ class DrugInteractionGraph:
 
         Args:
             graph: DrugInteractionGraph instance with loaded data
-            model_name: Gemini model to use
+            model_name: OpenAI model to use
             temperature: Model temperature (0.0 for deterministic)
             verbose: Whether to print debug information
             enable_drug_mapping: Whether to enable drug name mapping
@@ -50,14 +49,10 @@ class DrugInteractionGraph:
         self.enable_drug_mapping = enable_drug_mapping
 
         # Initialize LLM
-        api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY is missing")
-
-        self.llm = ChatGoogleGenerativeAI(
+        self.llm = ChatOpenAI(
             model=model_name,
-            google_api_key=api_key,
-            temperature=temperature,
+            # temperature=temperature,
+            # reasoning_effort="low" if "o3" in model_name else None,
         )
 
         # Create tools (use enhanced tools if mapping is enabled)
@@ -342,7 +337,7 @@ Using map_drug_name_tool:
 
     def _translator_node(self, state: DrugInteractionAgentState) -> dict:
         """
-        Translation node that translates the agent's output to English.
+        Translation node that translates the agent's output to Vietnamese.
 
         Args:
             state: Current agent state
@@ -360,7 +355,7 @@ Using map_drug_name_tool:
                 break
 
         if not last_ai_message:
-            return {"vietnamese_output": "Could not translate the response."}
+            return {"vietnamese_output": "Không thể dịch phản hồi."}
 
         # Extract drug links from tool call messages
         drug_links = self._extract_drug_links_from_messages(messages)
@@ -378,15 +373,18 @@ Using map_drug_name_tool:
         if state_conversions:
             drug_conversions.update(state_conversions)
 
-        # Translate only the core content first.
-        # Keep reference links out of the translation step so the markdown URLs
-        # stay intact and render as normal clickable links in the UI.
+        # Append drug links section to the content if available
         content_to_translate = last_ai_message.content
+        if drug_links:
+            links_section = "\n\n### Drug Information Links\n"
+            for drug_name, url in drug_links.items():
+                links_section += f"- [{drug_name}]({url})\n"
+            content_to_translate += links_section
 
         # Create translation prompt
         translation_prompt = f"""
-        Rewrite the following medical text about drug interactions in clear, natural English.
-        Keep the markdown formatting intact and ensure medical terminology is accurate.
+        Translate the following medical text about drug interactions from English to Vietnamese.
+        Keep the markdown formatting intact and ensure medical terminology is accurately translated.
         Maintain the structure with headings, lists, and emphasis.
         Keep URLs unchanged.
 
@@ -395,11 +393,9 @@ Using map_drug_name_tool:
         """
 
         # Use a separate LLM instance for translation
-        api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
-        translator_llm = ChatGoogleGenerativeAI(
+        translator_llm = ChatOpenAI(
             model=self.model_name,
-            temperature=0.1,
-            google_api_key=api_key,
+            temperature=0.1,  # Lower temperature for more consistent translation
         )
 
         try:
@@ -407,7 +403,7 @@ Using map_drug_name_tool:
             translation_response = translator_llm.invoke(
                 [
                     SystemMessage(
-                        content="You are a professional medical editor specializing in drug interaction information. Rewrite accurately while preserving markdown formatting."
+                        content="You are a professional medical translator specializing in drug interaction information. Translate accurately while preserving markdown formatting."
                     ),
                     HumanMessage(content=translation_prompt),
                 ]
@@ -415,26 +411,25 @@ Using map_drug_name_tool:
 
             vietnamese_output = translation_response.content
 
-            # Append drug links after translation so they remain unchanged.
-            if drug_links:
-                links_section = "\n\n### Drug Information Links\n"
-                for drug_name, url in drug_links.items():
-                    links_section += f"- [{drug_name}]({url})\n"
-                vietnamese_output = vietnamese_output.rstrip() + links_section
-
             if self.verbose:
                 print(f"Translation completed: {len(vietnamese_output)} characters")
 
-            return {"vietnamese_output": vietnamese_output, "drug_conversions": drug_conversions}
+            return {
+                "vietnamese_output": vietnamese_output,
+                "drug_conversions": drug_conversions,
+            }
 
         except Exception as e:
             if self.verbose:
                 print(f"Translation error: {e}")
-            return {"vietnamese_output": f"Translation error: {str(e)}", "drug_conversions": drug_conversions}
+            return {
+                "vietnamese_output": f"Lỗi dịch thuật: {str(e)}",
+                "drug_conversions": drug_conversions,
+            }
 
     def _parser_node(self, state: DrugInteractionAgentState) -> dict:
         """
-        Parser node that parses the English output into structured JSON format.
+        Parser node that parses the Vietnamese output into structured JSON format.
 
         Args:
             state: Current agent state
@@ -449,18 +444,18 @@ Using map_drug_name_tool:
         if not vietnamese_output:
             return {"parsed_result": None}
 
-        # Create a prompt for parsing the English output into structured format
+        # Create a prompt for parsing the Vietnamese output into structured format
         parsing_prompt = f"""
-        Parse the following English text about drug interactions into a structured JSON format.
+        Parse the following Vietnamese text about drug interactions into a structured JSON format.
 
         Extract the following information:
-        1. Drug name conversions (original -> converted) - look for sections like "Drug Name Conversions"
-        2. Drug interactions between pairs (drug1, drug2, status, details) - look for sections like "Interactions Between Drug Pairs"
-        3. Summary (overall_risk, major_interactions, recommendations) - look for sections like "Final Summary"
+        1. Drug name conversions (original -> converted) - look for sections like "Drug Name Conversions" or "Chuyển đổi tên thuốc"
+        2. Drug interactions between pairs (drug1, drug2, status, details) - look for sections like "Interactions Between Drug Pairs" or "Tương tác giữa các cặp thuốc"
+        3. Summary (overall_risk, major_interactions, recommendations) - look for sections like "Final Summary" or "Tóm tắt cuối cùng"
 
         For drug references, use the provided drug_links dictionary to find URLs. Match drug names from the text to keys in drug_links.
 
-        English text to parse:
+        Vietnamese text to parse:
         {vietnamese_output}
 
         Drug links available:
@@ -472,26 +467,24 @@ Using map_drug_name_tool:
         Instructions:
         - IMPORTANT: Use the drug_conversions dictionary above as the PRIMARY source for drug conversions. These are the actual conversions that happened during tool execution.
         - Extract all drug conversions: For each entry in drug_conversions, create a DrugConversion entry with original and converted names. Also extract any additional conversions mentioned in the Vietnamese text.
-        - Extract all drug interaction pairs and their details (look for headings like "Drug1 + Drug2")
-        - For each interaction, determine status: "Safe" if safe/no interaction, "Has Interaction" if interaction found
+        - Extract all drug interaction pairs and their details (look for headings like "Drug1 + Drug2" or "Thuốc1 + Thuốc2")
+        - For each interaction, determine status: "An Toàn" if safe/no interaction, "Có Tương Tác" if interaction found
         - Extract the summary information:
-          * overall_risk: Look for "Overall Risk" (values like "High", "Medium", "Low", "None")
+          * overall_risk: Look for "Overall Risk" or "Rủi ro tổng thể" (values like "High", "Medium", "Low", "None" or "Cao", "Trung bình", "Thấp", "Không")
           * major_interactions: List of key interaction findings
           * recommendations: List of clinical recommendations
         - Map drug names to their reference links if available in drug_links (case-insensitive matching)
         - For DrugConversion references, use drug_links to find URLs for the converted drug names
         - Set step to 1
-        - Set title to a descriptive title about the drug interaction analysis
+        - Set title to a descriptive title about the drug interaction analysis (can be in Vietnamese)
         - If a section is missing, use empty lists [] or appropriate defaults
         - Ensure all required fields are present in the output
         """
 
         # Use structured output with Pydantic model
-        api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
-        parser_llm = ChatGoogleGenerativeAI(
+        parser_llm = ChatOpenAI(
             model=self.model_name,
-            temperature=0.0,
-            google_api_key=api_key,
+            temperature=0.0,  # Low temperature for consistent parsing
         )
 
         try:
@@ -502,7 +495,7 @@ Using map_drug_name_tool:
             parsed_result = structured_llm.invoke(
                 [
                     SystemMessage(
-                        content="You are a parser that extracts structured information from English drug interaction text. Parse accurately and map all available information to the required structure."
+                        content="You are a parser that extracts structured information from Vietnamese drug interaction text. Parse accurately and map all available information to the required structure."
                     ),
                     HumanMessage(content=parsing_prompt),
                 ]
@@ -658,7 +651,7 @@ Using map_drug_name_tool:
 
             return {
                 "english": english_output or "I couldn't generate a response.",
-                "vietnamese": vietnamese_output or "Could not generate a response.",
+                "vietnamese": vietnamese_output or "Không thể tạo phản hồi.",
                 "drug_links": drug_links,
                 "drug_conversions": drug_conversions,
                 "parsed_result": parsed_result,
@@ -669,7 +662,7 @@ Using map_drug_name_tool:
                 print(f"Error in graph execution: {e}")
             return {
                 "english": f"Error processing query: {str(e)}",
-                "vietnamese": f"Error processing query: {str(e)}",
+                "vietnamese": f"Lỗi xử lý truy vấn: {str(e)}",
                 "drug_links": {},
                 "parsed_result": None,
             }

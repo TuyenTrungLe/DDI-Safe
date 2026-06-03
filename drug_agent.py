@@ -10,7 +10,7 @@ import os
 from typing import Optional, Dict
 from langchain.agents import initialize_agent, AgentType
 from langchain.memory import ConversationBufferMemory
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langchain.tools import Tool
 from drug_interaction_graph import DrugInteractionGraph
 
@@ -26,8 +26,8 @@ class DrugInteractionAgent:
     def __init__(
         self,
         graph: DrugInteractionGraph,
-        gemini_api_key: Optional[str] = None,
-        model_name: str = "gemini-3.1-flash-lite",
+        openai_api_key: Optional[str] = None,
+        model_name: str = "gpt-3.5-turbo",
         temperature: float = 0.0,
         verbose: bool = False,
     ):
@@ -36,8 +36,8 @@ class DrugInteractionAgent:
 
         Args:
             graph: DrugInteractionGraph instance with loaded data
-            gemini_api_key: Gemini API key (defaults to env var GEMINI_API_KEY)
-            model_name: Gemini model to use
+            openai_api_key: OpenAI API key (defaults to env var OPENAI_API_KEY)
+            model_name: OpenAI model to use (gpt-3.5-turbo or gpt-4)
             temperature: Model temperature (0.0 for deterministic)
             verbose: Whether to print agent reasoning steps
         """
@@ -45,17 +45,21 @@ class DrugInteractionAgent:
         self.verbose = verbose
 
         # Initialize LLM
-        api_key = gemini_api_key or os.getenv("GEMINI_API_KEY")
+        api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError(
-                "Gemini API key not found. Set GEMINI_API_KEY environment variable "
-                "or pass gemini_api_key parameter."
+                "OpenAI API key not found. Set OPENAI_API_KEY environment variable "
+                "or pass openai_api_key parameter."
             )
 
-        self.llm = ChatGoogleGenerativeAI(
+        self.llm = ChatOpenAI(
+            # model=model_name, temperature=temperature, openai_api_key=api_key
             model=model_name,
-            temperature=temperature,
-            google_api_key=api_key,
+            reasoning_effort="low",
+            # reasoning={"effort": "low"},  # "minimal", "medium", "high"
+            # model_kwargs={
+            #     "text": {"verbosity": "medium"}
+            # },  # "low", "medium", or "high"
         )
 
         # Create tools
@@ -199,8 +203,8 @@ class DrugInteractionAgent:
 
 def create_agent(
     data_filepath: str,
-    gemini_api_key: Optional[str] = None,
-    model_name: str = "gemini-3.1-flash-lite",
+    openai_api_key: Optional[str] = None,
+    model_name: str = "gpt-5-mini-2025-08-07",
     verbose: bool = False,
 ) -> DrugInteractionAgent:
     """
@@ -208,8 +212,8 @@ def create_agent(
 
     Args:
         data_filepath: Path to CSV file with drug interactions
-        gemini_api_key: Gemini API key (defaults to env var)
-        model_name: Gemini model to use
+        openai_api_key: OpenAI API key (defaults to env var)
+        model_name: OpenAI model to use
         verbose: Whether to print agent reasoning
 
     Returns:
@@ -220,7 +224,7 @@ def create_agent(
     print(f"Initializing agent with {model_name}...")
     agent = DrugInteractionAgent(
         graph=graph,
-        gemini_api_key=gemini_api_key,
+        openai_api_key=openai_api_key,
         model_name=model_name,
         verbose=verbose,
     )
