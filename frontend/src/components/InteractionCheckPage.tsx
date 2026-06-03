@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Pill, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
@@ -10,19 +10,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { drugInteractionAPI } from "@/lib/api";
 import { defineStepper } from "@/components/ui/stepper";
 import useAuthStore from "@/stores/use-auth-store";
+import useChatStore from "@/stores/use-chat-store";
+import useGlobalStore from "@/stores/use-global-store";
 
 const { Stepper } = defineStepper(
   {
     id: "upload",
-    title: "Tải Lên Hình Ảnh",
+    title: "Upload Images",
   },
   {
     id: "check",
-    title: "Trích Xuất Thành Phần",
+    title: "Extract Ingredients",
   },
   {
     id: "results",
-    title: "Kết Quả",
+    title: "Results",
   }
 );
 
@@ -33,6 +35,8 @@ export function InteractionCheckPage() {
   const [interactionResult, setInteractionResult] = useState<string | any>("");
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const { isAuthenticated, addInteractionCheck, addToMedicineCabinet } = useAuthStore();
+  const clearChatSession = useChatStore((state) => state.clear);
+  const setInteractionContext = useGlobalStore((state) => state.setInteractionContext);
 
   // Drug name extraction mutation
   const drugExtractionMutation = useMutation({
@@ -59,12 +63,12 @@ export function InteractionCheckPage() {
 
       // Save to patient profile if authenticated
       if (isAuthenticated) {
-        addInteractionCheck(variables, data);
+        void addInteractionCheck(variables, data);
       }
     },
     onError: (error) => {
       console.error("API Error:", error);
-      alert("Không thể kiểm tra tương tác. Vui lòng đảm bảo backend đang chạy.");
+      alert("Unable to check interactions. Please make sure the backend is running.");
     },
   });
 
@@ -94,10 +98,10 @@ export function InteractionCheckPage() {
             prev.map((imgResult) =>
               imgResult.file.name === file.name
                 ? {
-                    ...imgResult,
-                    extractedIngredients: result.result,
-                    isLoading: false,
-                  }
+                  ...imgResult,
+                  extractedIngredients: result.result,
+                  isLoading: false,
+                }
                 : imgResult
             )
           );
@@ -115,10 +119,10 @@ export function InteractionCheckPage() {
             prev.map((imgResult) =>
               imgResult.file.name === file.name
                 ? {
-                    ...imgResult,
-                    isLoading: false,
-                    error: "Không thể trích xuất thành phần",
-                  }
+                  ...imgResult,
+                  isLoading: false,
+                  error: "Unable to extract ingredients",
+                }
                 : imgResult
             )
           );
@@ -181,9 +185,10 @@ export function InteractionCheckPage() {
 
   const handleCheckInteractions = () => {
     if (detectedDrugs.length === 0) {
-      alert("Vui lòng tải lên hình ảnh có tên thuốc trước.");
+      alert("Please upload an image that contains drug names first.");
       return;
     }
+
     interactionMutation.mutate(detectedDrugs);
   };
 
@@ -194,6 +199,7 @@ export function InteractionCheckPage() {
     setDetectedDrugs([]);
     setInteractionResult("");
     setIsProcessingImages(false);
+    clearChatSession();
     reset();
   };
 
@@ -204,6 +210,7 @@ export function InteractionCheckPage() {
     setDetectedDrugs([]);
     setInteractionResult("");
     setIsProcessingImages(false);
+    clearChatSession();
     // Reset mutations
     drugExtractionMutation.reset();
     interactionMutation.reset();
@@ -212,6 +219,10 @@ export function InteractionCheckPage() {
 
   const isProcessing = isProcessingImages;
   const isCheckingInteractions = interactionMutation.isPending;
+
+  useEffect(() => {
+    setInteractionContext(detectedDrugs);
+  }, [detectedDrugs, setInteractionContext]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -223,11 +234,11 @@ export function InteractionCheckPage() {
               <Pill className="h-10 w-10 text-primary" />
             </div>
             <h1 className="text-5xl leading-14 font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-              Kiểm Tra Tương Tác Thuốc
+              Drug Interaction Check
             </h1>
           </div>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">
-            Tải lên hình ảnh nhãn thuốc để trích xuất thành phần hoạt chất và kiểm tra các tương tác thuốc tiềm ẩn
+            Upload drug label images to extract active ingredients and check potential drug interactions
           </p>
         </div>
 
@@ -241,9 +252,9 @@ export function InteractionCheckPage() {
                     <Stepper.Step key={step.id} of={step.id} onClick={() => methods.goTo(step.id)}>
                       <Stepper.Title className="text-base font-semibold">{step.title}</Stepper.Title>
                       <Stepper.Description className="text-xs text-muted-foreground">
-                        {step.id === "upload" && "Tải lên hình ảnh nhãn thuốc"}
-                        {step.id === "check" && "Trích xuất thành phần hoạt chất từ hình ảnh"}
-                        {step.id === "results" && "Xem kết quả kiểm tra tương tác"}
+                        {step.id === "upload" && "Upload drug label images"}
+                        {step.id === "check" && "Extract active ingredients from images"}
+                        {step.id === "results" && "View interaction results"}
                       </Stepper.Description>
                     </Stepper.Step>
                   ))}
@@ -258,8 +269,8 @@ export function InteractionCheckPage() {
                       {/* Upload Section - Step 1: Just upload images */}
                       <Card className="border-2 shadow-lg hover:shadow-xl transition-shadow duration-300">
                         <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b">
-                          <CardTitle className="text-2xl font-bold">Bước 1: Tải Lên Hình Ảnh</CardTitle>
-                          <CardDescription className="text-base">Tải lên hình ảnh nhãn thuốc để trích xuất thành phần hoạt chất</CardDescription>
+                          <CardTitle className="text-2xl font-bold">Step 1: Upload Images</CardTitle>
+                          <CardDescription className="text-base">Upload drug label images to extract active ingredients</CardDescription>
                         </CardHeader>
                         <CardContent>
                           <ImageUpload
@@ -279,8 +290,8 @@ export function InteractionCheckPage() {
                       {/* Step 2: Extracting Medicinal Ingredients */}
                       <Card className="border-2 shadow-lg hover:shadow-xl transition-shadow duration-300">
                         <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b">
-                          <CardTitle className="text-2xl font-bold">Bước 2: Trích Xuất Thành Phần</CardTitle>
-                          <CardDescription className="text-base">Trích xuất thành phần hoạt chất từ hình ảnh đã tải lên</CardDescription>
+                          <CardTitle className="text-2xl font-bold">Step 2: Extract Ingredients</CardTitle>
+                          <CardDescription className="text-base">Extract active ingredients from the uploaded images</CardDescription>
                         </CardHeader>
                         <CardContent>
                           {selectedImages.length === 0 ? (
@@ -288,7 +299,7 @@ export function InteractionCheckPage() {
                               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
                                 <Pill className="h-8 w-8 text-muted-foreground/50" />
                               </div>
-                              <p className="text-base">Chưa có hình ảnh nào được tải lên. Vui lòng quay lại bước 1 để tải lên hình ảnh.</p>
+                              <p className="text-base">No images have been uploaded yet. Please go back to step 1 to upload images.</p>
                             </div>
                           ) : (
                             <>
@@ -303,8 +314,8 @@ export function InteractionCheckPage() {
                                     size="lg"
                                   >
                                     {imageResults.length === 0
-                                      ? "Bắt Đầu Trích Xuất"
-                                      : `Trích xuất thêm ${selectedImages.length - imageResults.length} hình ảnh`}
+                                      ? "Start Extraction"
+                                      : `Extract ${selectedImages.length - imageResults.length} more images`}
                                   </Button>
                                 </div>
                               )}
@@ -313,20 +324,19 @@ export function InteractionCheckPage() {
                               {isProcessingImages && (
                                 <div className="mb-6 space-y-3 p-4 bg-muted/50 rounded-lg border mt-4">
                                   <div className="flex items-center justify-between text-sm">
-                                    <span className="text-muted-foreground font-medium">Đang xử lý hình ảnh...</span>
+                                    <span className="text-muted-foreground font-medium">Processing images...</span>
                                     <span className="font-semibold text-primary">
-                                      {imageResults.filter((r) => !r.isLoading).length} / {selectedImages.length} đã hoàn thành
+                                      {imageResults.filter((r) => !r.isLoading).length} / {selectedImages.length} Completed
                                     </span>
                                   </div>
                                   <div className="w-full bg-muted rounded-full h-3 overflow-hidden shadow-inner">
                                     <div
                                       className="bg-gradient-to-r from-primary to-primary/80 h-3 rounded-full transition-all duration-500 ease-out shadow-sm"
                                       style={{
-                                        width: `${
-                                          selectedImages.length > 0
+                                        width: `${selectedImages.length > 0
                                             ? (imageResults.filter((r) => !r.isLoading).length / selectedImages.length) * 100
                                             : 0
-                                        }%`,
+                                          }%`,
                                       }}
                                     />
                                   </div>
@@ -359,8 +369,8 @@ export function InteractionCheckPage() {
                   results: () => (
                     <Card className="border-2 shadow-lg hover:shadow-xl transition-shadow duration-300">
                       <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b">
-                        <CardTitle className="text-2xl font-bold">Bước 3: Kết Quả</CardTitle>
-                        <CardDescription className="text-base">Kiểm tra tương tác thuốc và xem kết quả</CardDescription>
+                        <CardTitle className="text-2xl font-bold">Step 3: Results</CardTitle>
+                        <CardDescription className="text-base">Check drug interactions and view the results</CardDescription>
                       </CardHeader>
                       <CardContent className="pt-6">
                         {detectedDrugs.length > 0 ? (
@@ -377,10 +387,10 @@ export function InteractionCheckPage() {
                                   {isCheckingInteractions ? (
                                     <>
                                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                      Đang Kiểm Tra Tương Tác...
+                                      Checking Interactions...
                                     </>
                                   ) : (
-                                    `Kiểm Tra Tương Tác cho ${detectedDrugs.length} thành phần Thuốc`
+                                    `Check Interactions for ${detectedDrugs.length} Drug Ingredients`
                                   )}
                                 </Button>
                               </div>
@@ -394,7 +404,7 @@ export function InteractionCheckPage() {
                             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
                               <Pill className="h-8 w-8 text-muted-foreground/50" />
                             </div>
-                            <p className="text-base">Chưa phát hiện thuốc nào. Vui lòng quay lại bước 2 để trích xuất thành phần.</p>
+                            <p className="text-base">No drugs detected yet. Please go back to step 2 to extract ingredients.</p>
                           </div>
                         )}
                       </CardContent>
@@ -412,7 +422,7 @@ export function InteractionCheckPage() {
                       className="h-11 px-6 font-medium shadow-sm hover:shadow-md transition-all duration-200"
                     >
                       <ChevronLeft className="h-4 w-4 mr-2" />
-                      Quay Lại
+                      Back
                     </Button>
                   )}
                   {methods.isLast ? (
@@ -421,7 +431,7 @@ export function InteractionCheckPage() {
                       onClick={() => handleResetAll(methods.reset)}
                       className="h-11 px-6 font-semibold shadow-md hover:shadow-lg transition-all duration-200"
                     >
-                      Bắt Đầu Lại
+                      Start Over
                     </Button>
                   ) : (
                     <Button
@@ -434,7 +444,7 @@ export function InteractionCheckPage() {
                       }
                       className="h-11 px-6 font-semibold shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Tiếp Theo
+                      Next
                       <ChevronRight className="h-4 w-4 ml-2" />
                     </Button>
                   )}
@@ -448,10 +458,10 @@ export function InteractionCheckPage() {
                         ℹ️
                       </div>
                       <div className="text-sm text-accent-foreground flex-1">
-                        <p className="font-semibold mb-2 text-base">Thông Báo Quan Trọng</p>
+                        <p className="font-semibold mb-2 text-base">Important Notice</p>
                         <p className="leading-relaxed">
-                          Công cụ này chỉ mang tính chất tham khảo. Luôn tham khảo ý kiến của chuyên gia y tế trước khi thay đổi bất kỳ chế độ dùng
-                          thuốc nào. Đây không phải là thay thế cho lời khuyên y tế chuyên nghiệp.
+                          This tool is for reference only. Always consult a healthcare professional before changing any medication regimen.
+                          It is not a substitute for professional medical advice.
                         </p>
                       </div>
                     </div>
